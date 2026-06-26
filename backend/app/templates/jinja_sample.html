@@ -1063,11 +1063,11 @@
       .c42 {
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         gap: 10px;
-        padding-top: 0pt;
+        padding-top: 6pt;
         padding-bottom: 0pt;
-        text-align: center;
+        text-align: left;
       }
       .c82 {
         padding-top: 12.9pt;
@@ -1089,7 +1089,8 @@
       .c71 {
         background-color: #ffffff;
         max-width: 576pt;
-        padding: 65pt 18pt 14pt 18pt;
+        margin: 0 auto;
+        padding: 75pt 24pt 14pt 24pt;
       }
       .c70 {
         padding: 0;
@@ -1242,10 +1243,8 @@
         background: #000;
         display: flex;
         align-items: center;
-        justify-content: center;
-        gap: 24px;
+        justify-content: space-between;
         padding: 4pt 16pt;
-        margin-top: 0;
       }
       .footer-text {
         color: #fff;
@@ -1467,13 +1466,13 @@
           </ol>
         </td>
       </tr>
+      <tr>
+        <td colspan="11" class="page-footer">
+          <span class="footer-text">P.E.S. University</span>
+          <span class="footer-text">Curriculum :- {{ curriculum_year }} <span class="footer-page">{{ page_number }} |</span></span>
+        </td>
+      </tr>
     </table>
-
-  <div class="page-footer">
-    <span class="footer-text">P.E.S. University</span>
-    <span class="footer-text">Curriculum :- {{ curriculum_year }}</span>
-    <span class="footer-page">{{ page_number }} |</span>
-  </div>
   </body>
 </html>
 
