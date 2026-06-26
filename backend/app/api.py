@@ -1,10 +1,14 @@
 from fastapi import APIRouter
 from pydantic import BaseModel,Field, field_validator
 from typing import Literal
+from fastapi.responses import HTMLResponse
+from jinja2 import Environment, FileSystemLoader
 
 from app.supabase import supabase
 
 router=APIRouter()
+
+templates=Environment(loader=FileSystemLoader("app/templates"))
 
 class CourseSubmission(BaseModel):
     faculty_email: str=Field(min_length=3, max_length=254)
@@ -39,3 +43,16 @@ def receive(data: CourseSubmission):
     result=supabase.table("submissions").insert(data_dict).execute()
     print("New Submission Received! Course Title: ", data.course_title)
     return {"message":"Submission Received!", "submission":result.data[0]}
+
+@router.get("/preview/semester/{sem}/courses")
+def list_courses(sem:str):
+    result=supabase.table("refined_submissions").select("id").execute()
+    return {"course_ids": [r["id"] for r in result.data]}
+
+@router.get("/preview/course/{refined_id}")
+def preview_course(refined_id:int):
+    row=supabase.table("refined_submissions").select("*").eq("id", refined_id).single().execute()
+    from app.preview import build_course_preview
+    course=build_course_preview(row.data)
+    html=templates.get_template("jinja_sample.html").render(course=course, curriculum_year="", page_number="")
+    return HTMLResponse(content=html)
