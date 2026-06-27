@@ -267,7 +267,6 @@
         border-top-style: solid;
         border-left-style: solid;
         border-bottom-width: 1pt;
-        width: 441.2pt;
         border-top-color: #000000;
         border-bottom-style: solid;
       }
@@ -299,7 +298,6 @@
         border-top-style: solid;
         border-left-style: solid;
         border-bottom-width: 1pt;
-        width: 441.2pt;
         border-top-color: #000000;
         border-bottom-style: solid;
       }
@@ -554,8 +552,7 @@
         border-left-width: 1pt;
         border-top-style: solid;
         border-left-style: solid;
-        border-bottom-width: 1pt;
-        width: 218.6pt;
+        border-bottom-width: 1pt;                               
         border-top-color: #000000;
         border-bottom-style: solid;
       }
@@ -969,13 +966,6 @@
         line-height: 1;
         text-align: justify;
       }
-      .c27 {
-        padding-top: 0pt;
-        padding-bottom: 0pt;
-        line-height: 1;
-        text-align: right;
-        margin-right: 3.4pt;
-      }
       .c89 {
         margin-left: 398.5pt;
         padding-top: 0pt;
@@ -1060,14 +1050,11 @@
         text-align: left;
         height: 11pt;
       }
-      .c42 {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 10px;
-        padding-top: 6pt;
-        padding-bottom: 0pt;
-        text-align: left;
+      .c42 {/*logo*/
+        text-align: center;
+        padding: 0 0 0 40px;
+        margin-right: 5px;
+        overflow: hidden;
       }
       .c82 {
         padding-top: 12.9pt;
@@ -1076,7 +1063,7 @@
         text-align: left;
       }
       .c38 {
-        margin-left: 3.4pt;
+        margin-left: 15px;
         border-spacing: 0;
         border-collapse: collapse;
         margin-right: auto;
@@ -1089,8 +1076,7 @@
       .c71 {
         background-color: #ffffff;
         max-width: 576pt;
-        margin: 0 auto;
-        padding: 75pt 24pt 14pt 24pt;
+        padding: 65pt 18pt 14pt 18pt;
       }
       .c70 {
         padding: 0;
@@ -1243,7 +1229,6 @@
         background: #000;
         display: flex;
         align-items: center;
-        justify-content: space-between;
         padding: 4pt 16pt;
       }
       .footer-text {
@@ -1251,13 +1236,6 @@
         font-weight: 700;
         font-size: 10pt;
         font-family: Arial, sans-serif;
-        white-space: nowrap;
-      }
-      .footer-page {
-        color: #fff;
-        font-weight: 700;
-        font-size: 12pt;
-        font-family: Calibri, sans-serif;
         white-space: nowrap;
       }
     </style>
@@ -1275,6 +1253,7 @@
             -webkit-transform: rotate(0rad) translateZ(0px);
             width: 41.07px;
             height: 49.96px;
+            float: left;
           "
           ><img
             alt
@@ -1292,7 +1271,7 @@
           style="
             overflow: hidden;
             display: inline-block;
-            margin: 0px 0px;
+            margin: 25px 0px 0px -75px;
             border: 0px solid #000000;
             transform: rotate(0rad) translateZ(0px);
             -webkit-transform: rotate(0rad) translateZ(0px);
@@ -1466,13 +1445,12 @@
           </ol>
         </td>
       </tr>
-      <tr>
-        <td colspan="11" class="page-footer">
-          <span class="footer-text">P.E.S. University</span>
-          <span class="footer-text">Curriculum :- {{ curriculum_year }} <span class="footer-page">{{ page_number }} |</span></span>
-        </td>
-      </tr>
     </table>
+
+<div class="page-footer">
+  <span class="footer-text">P.E.S. University                                                  Curriculum :- 2025-2026</span>
+  <span class="footer-text" style="margin-left: auto">{{ page_number }}</span>
+</div>
   </body>
 </html>
 
