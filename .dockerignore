@@ -1,2 +1,14 @@
-.venv/  __pycache__/  *.pyc  .env  .nottracked/  frontend/
-.git/  .gitignore  AGENTS.md  README.md  LICENSE  *.md
+.venv/
+__pycache__/
+*.pyc
+.env
+.nottracked/
+.git/
+.gitignore
+AGENTS.md
+README.md
+LICENSE
+*.md
+frontend/**
+!frontend/images/
+!frontend/images/**
