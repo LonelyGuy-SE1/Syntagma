@@ -966,13 +966,6 @@
         line-height: 1;
         text-align: justify;
       }
-      .c27 {
-        padding-top: 0pt;
-        padding-bottom: 0pt;
-        line-height: 1;
-        text-align: right;
-        margin-right: 3.4pt;
-      }
       .c89 {
         margin-left: 398.5pt;
         padding-top: 0pt;
@@ -1057,9 +1050,9 @@
         text-align: left;
         height: 11pt;
       }
-      .c42 {
+      .c42 {/*logo*/
         text-align: center;
-        padding: 0 0 0 3.4pt;
+        padding: 0 0 0 40px;
         margin-right: 5px;
         overflow: hidden;
       }
@@ -1236,10 +1229,7 @@
         background: #000;
         display: flex;
         align-items: center;
-        justify-content: space-between;
         padding: 4pt 16pt;
-        margin: 0 3.4pt;
-        margin-bottom: 0.5pt;
       }
       .footer-text {
         color: #fff;
@@ -1281,7 +1271,7 @@
           style="
             overflow: hidden;
             display: inline-block;
-            margin: 0px 0px;
+            margin: 25px 0px 0px -75px;
             border: 0px solid #000000;
             transform: rotate(0rad) translateZ(0px);
             -webkit-transform: rotate(0rad) translateZ(0px);
@@ -1457,11 +1447,10 @@
       </tr>
     </table>
 
-  <div class="page-footer">
-    <span class="footer-text">P.E.S. University</span>
-    <span class="footer-text">Curriculum :- {{ curriculum_year }}</span>
-    <span class="footer-text">{{ page_number }}</span>
-  </div>
+<div class="page-footer">
+  <span class="footer-text">P.E.S. University                                                  Curriculum :- 2025-2026</span>
+  <span class="footer-text" style="margin-left: auto">{{ page_number }}</span>
+</div>
   </body>
 </html>
 
