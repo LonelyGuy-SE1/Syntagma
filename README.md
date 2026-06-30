@@ -1,5 +1,17 @@
 # Curriculum Automation
 
+---
+sdk: docker
+sdk_version: "latest" 
+app_file: Dockerfile
+pinned: false
+title: "Curriculum Backend"
+emoji: "🌹"
+colorFrom: crimson
+colorTo: rose
+---
+
+
 ## Phase 1 Flow Proposal
 
 ```mermaid id="phase1-flow"
