@@ -6,7 +6,7 @@ from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel,Field, field_validator
 from typing import Literal
 from weasyprint import HTML
-
+from app.services.refinement import refine
 from app.preview import build_course_preview
 from app.supabase import supabase
 
@@ -69,3 +69,9 @@ def download_pdf(sem:str):
     combined=f"""<!DOCTYPE html><html><head><meta charset="UTF-8">{style}<style>@page{{size:A4;margin:0;}}.page-break{{page-break-before:always;}}.c71{{padding-bottom:35pt;}}</style></head><body>{"".join(bodies)}</body></html>"""
     pdf=HTML(string=combined,base_url=str(FRONTEND_DIR)).write_pdf()
     return Response(content=pdf,media_type="application/pdf",headers={"Content-Disposition":f"attachment;filename=semester-{sem}.pdf"})
+
+from app.services.refinement import refine
+
+@router.post("/submissions/{id}/refine")
+def refine_submission(id: int):
+    return {"message": "Refined", "data": refine(id)}
