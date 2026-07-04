@@ -234,6 +234,15 @@
         font-size: 11px;
       }
 
+      .attachment-meta.ready {
+        color: #166534;
+      }
+
+      .attachment-meta.failed,
+      .attachment-meta.unsupported {
+        color: #991b1b;
+      }
+
       .attachment-remove {
         height: 26px;
         padding: 0 8px;
@@ -512,6 +521,7 @@
       const applyDraft = document.getElementById("apply-draft");
       let activeCourseId = "";
       let activeDraftId = "";
+      let activeSessionId = "";
       let queuedFiles = [];
 
       async function courseIds(sem) {
@@ -544,20 +554,40 @@
       }
 
       function chatKey() {
-        return `pesu-live-editor-chat:${activeCourseId || "document"}`;
+        return `pesu-live-editor-session:${activeCourseId || "document"}`;
       }
 
-      function loadMessages() {
-        if (!activeCourseId) return [];
-        try {
-          return JSON.parse(localStorage.getItem(chatKey()) || "[]");
-        } catch {
+      async function ensureChatSession() {
+        const key = chatKey();
+        const existing = localStorage.getItem(key);
+        if (existing) {
+          activeSessionId = existing;
+          return existing;
+        }
+
+        const response = await fetch("/api/chat/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(activeCourseId ? { refined_id: Number(activeCourseId), title: statusText.textContent } : { title: "Full Document" }),
+        });
+        if (!response.ok) throw new Error("Unable to create chat session");
+        const body = await response.json();
+        activeSessionId = String(body.session.id);
+        localStorage.setItem(key, activeSessionId);
+        return activeSessionId;
+      }
+
+      async function loadMessages() {
+        if (!activeSessionId) return [];
+        const response = await fetch(`/api/chat/sessions/${activeSessionId}/messages`);
+        if (!response.ok) {
+          localStorage.removeItem(chatKey());
+          activeSessionId = "";
+          await ensureChatSession();
           return [];
         }
-      }
-
-      function saveMessages(messages) {
-        if (activeCourseId) localStorage.setItem(chatKey(), JSON.stringify(messages));
+        const body = await response.json();
+        return body.messages || [];
       }
 
       function formatSize(bytes) {
@@ -583,7 +613,10 @@
         name.textContent = file.name;
         const meta = document.createElement("div");
         meta.className = "attachment-meta";
-        meta.textContent = `${file.type || "file"} - ${formatSize(file.size || 0)}`;
+        if (file.status) meta.classList.add(file.status);
+        const status = file.status ? ` - ${file.status}` : "";
+        const extracted = file.extracted_chars ? ` - ${file.extracted_chars} chars` : "";
+        meta.textContent = `${file.type || "file"} - ${formatSize(file.size || 0)}${status}${extracted}`;
         text.append(name, meta);
         item.append(visual, text);
         if (removable) {
@@ -606,26 +639,65 @@
         draftAttachments.replaceChildren(...queuedFiles.map((file, index) => attachmentNode(file, index, true)));
       }
 
-      function renderMessages() {
-        const messages = loadMessages();
-        chatLog.replaceChildren();
-        messages.forEach((item) => {
-          const bubble = document.createElement("div");
-          bubble.className = `message ${item.role}`;
-          if (item.content) bubble.appendChild(document.createTextNode(item.content));
-          if (item.attachments?.length) {
-            const list = document.createElement("div");
-            list.className = "attachments";
-            item.attachments.forEach((file) => list.appendChild(attachmentNode(file, 0, false)));
-            bubble.appendChild(list);
-          }
-          const time = document.createElement("div");
-          time.className = "message-time";
-          time.textContent = new Date(item.created_at).toLocaleString();
-          bubble.appendChild(time);
-          chatLog.appendChild(bubble);
-        });
+      function messageNode(item) {
+        const bubble = document.createElement("div");
+        bubble.className = `message ${item.role}`;
+        const content = document.createElement("div");
+        content.textContent = item.content || "";
+        bubble.appendChild(content);
+        const attachments = item.attachments || item.metadata?.attachments || [];
+        if (attachments.length) {
+          const list = document.createElement("div");
+          list.className = "attachments";
+          attachments.forEach((file) => list.appendChild(attachmentNode(file, 0, false)));
+          bubble.appendChild(list);
+        }
+        const time = document.createElement("div");
+        time.className = "message-time";
+        time.textContent = new Date(item.created_at || Date.now()).toLocaleString();
+        bubble.appendChild(time);
+        return { bubble, content };
+      }
+
+      function appendMessage(item) {
+        const node = messageNode(item);
+        chatLog.appendChild(node.bubble);
         chatLog.scrollTop = chatLog.scrollHeight;
+        return node;
+      }
+
+      async function renderMessages() {
+        const messages = await loadMessages();
+        chatLog.replaceChildren();
+        messages.forEach((item) => appendMessage(item));
+      }
+
+      function parseEvent(raw) {
+        let event = "message";
+        const data = [];
+        raw.split("\n").forEach((line) => {
+          if (line.startsWith("event:")) event = line.slice(6).trim();
+          if (line.startsWith("data:")) data.push(line.slice(5).trim());
+        });
+        return { event, data: data.length ? JSON.parse(data.join("\n")) : {} };
+      }
+
+      async function readEventStream(response, onEvent) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let index = buffer.indexOf("\n\n");
+          while (index >= 0) {
+            const raw = buffer.slice(0, index).trim();
+            buffer = buffer.slice(index + 2);
+            if (raw) onEvent(parseEvent(raw));
+            index = buffer.indexOf("\n\n");
+          }
+        }
       }
 
       function resetReview() {
@@ -719,16 +791,37 @@
       }
 
       async function queueFiles(fileList) {
-        const next = await Promise.all(
+        await ensureChatSession();
+        statusText.textContent = "Uploading attachments...";
+        const pending = await Promise.all(
           Array.from(fileList).map(async (file) => ({
             name: file.name,
             type: file.type,
             size: file.size,
+            status: "uploading",
             preview: await filePreview(file),
           })),
         );
-        queuedFiles = queuedFiles.concat(next);
+        queuedFiles = queuedFiles.concat(pending);
         renderDraftAttachments();
+        const form = new FormData();
+        Array.from(fileList).forEach((file) => form.append("files", file));
+        const response = await fetch(`/api/chat/sessions/${activeSessionId}/attachments`, {
+          method: "POST",
+          body: form,
+        });
+        if (!response.ok) {
+          const body = await response.json();
+          throw new Error(body.detail || "Attachment upload failed");
+        }
+        const body = await response.json();
+        const uploaded = (body.attachments || []).map((file, index) => ({
+          ...file,
+          preview: pending[index]?.preview || "",
+        }));
+        queuedFiles.splice(queuedFiles.length - pending.length, pending.length, ...uploaded);
+        renderDraftAttachments();
+        statusText.textContent = "Attachments ready.";
         files.value = "";
       }
 
@@ -748,7 +841,8 @@
         if (selected) selected.textContent = title;
         queuedFiles = [];
         renderDraftAttachments();
-        renderMessages();
+        await ensureChatSession();
+        await renderMessages();
       }
 
       async function loadDocumentPreview() {
@@ -762,7 +856,8 @@
         viewer.src = "/api/preview/pdf";
         preview.href = "/api/preview/pdf";
         statusText.textContent = "Full Document";
-        renderMessages();
+        await ensureChatSession();
+        await renderMessages();
       }
 
       async function loadSemester(sem) {
@@ -808,27 +903,55 @@
       attach.addEventListener("click", () => files.click());
       files.addEventListener("change", () => queueFiles(files.files));
 
-      send.addEventListener("click", () => {
+      send.addEventListener("click", async () => {
         const content = message.value.trim();
         if (!content && !queuedFiles.length) return;
-        const messages = loadMessages();
-        messages.push({
-          role: "user",
-          content,
-          attachments: queuedFiles,
-          created_at: new Date().toISOString(),
-        });
-        saveMessages(messages);
-        message.value = "";
-        queuedFiles = [];
-        renderDraftAttachments();
-        renderMessages();
+        send.disabled = true;
+        try {
+          await ensureChatSession();
+          const attachments = queuedFiles;
+          appendMessage({
+            role: "user",
+            content,
+            attachments,
+            created_at: new Date().toISOString(),
+          });
+          const assistant = appendMessage({ role: "assistant", content: "", created_at: new Date().toISOString() });
+          message.value = "";
+          queuedFiles = [];
+          renderDraftAttachments();
+
+          const response = await fetch(`/api/chat/sessions/${activeSessionId}/messages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content, metadata: { attachments } }),
+          });
+          if (!response.ok) {
+            const body = await response.json();
+            throw new Error(body.detail || "Chat failed");
+          }
+
+          let answer = "";
+          await readEventStream(response, ({ event, data }) => {
+            if (event === "status") statusText.textContent = data.message || "";
+            if (event === "token") {
+              answer += data.text || "";
+              assistant.content.textContent = answer;
+              chatLog.scrollTop = chatLog.scrollHeight;
+            }
+            if (event === "error") throw new Error(data.message || "Chat failed");
+            if (event === "done") statusText.textContent = "Response saved.";
+          });
+        } finally {
+          send.disabled = false;
+        }
       });
 
-      clearChat.addEventListener("click", () => {
-        if (!activeCourseId) return;
+      clearChat.addEventListener("click", async () => {
         localStorage.removeItem(chatKey());
-        renderMessages();
+        activeSessionId = "";
+        chatLog.replaceChildren();
+        await ensureChatSession();
       });
 
       draft.addEventListener("click", async () => {
