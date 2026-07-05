@@ -1,8 +1,3 @@
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parents[1] / "backend"))
-
 from app.services.diffing import apply_patch, build_patch, diff_course, merge_fields, validate_draft
 
 

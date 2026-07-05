@@ -188,6 +188,24 @@
         white-space: normal;
       }
 
+      .message-body {
+        white-space: pre-wrap;
+      }
+
+      .message-body code {
+        padding: 1px 4px;
+        border: 1px solid #d1d5db;
+        border-radius: 3px;
+        background: #f3f4f6;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 12px;
+      }
+
+      .message-body a {
+        color: #00377b;
+        text-decoration: underline;
+      }
+
       .attachments {
         display: grid;
         gap: 6px;
@@ -469,12 +487,12 @@
         <section class="panel review-panel" id="review-panel" role="tabpanel" aria-labelledby="review-tab">
           <div class="document-draft">
             <div class="draft-loader">
-              <input id="course-draft-id" type="number" min="1" placeholder="Course draft ID" aria-label="Course draft ID" />
-              <button id="load-course-draft" type="button">Load</button>
+              <input id="course-draft-id" type="number" min="1" aria-label="Course draft ID" />
+              <button id="load-course-draft" type="button">Course</button>
             </div>
             <div class="draft-loader">
-              <input id="document-draft-id" type="number" min="1" placeholder="Document draft ID" aria-label="Document draft ID" />
-              <button id="load-document-draft" type="button">Load</button>
+              <input id="document-draft-id" type="number" min="1" aria-label="Document draft ID" />
+              <button id="load-document-draft" type="button">Document</button>
             </div>
           </div>
           <div class="review-summary" id="review-summary"></div>
@@ -643,7 +661,8 @@
         const bubble = document.createElement("div");
         bubble.className = `message ${item.role}`;
         const content = document.createElement("div");
-        content.textContent = item.content || "";
+        content.className = "message-body";
+        renderMessageContent(content, item.content || "");
         bubble.appendChild(content);
         const attachments = item.attachments || item.metadata?.attachments || [];
         if (attachments.length) {
@@ -657,6 +676,38 @@
         time.textContent = new Date(item.created_at || Date.now()).toLocaleString();
         bubble.appendChild(time);
         return { bubble, content };
+      }
+
+      function renderMessageContent(target, value) {
+        target.replaceChildren();
+        const text = String(value || "");
+        const pattern = /(\*\*[^*]+\*\*|`[^`]+`|https?:\/\/[^\s<>()]+)/g;
+        let last = 0;
+        for (const match of text.matchAll(pattern)) {
+          if (match.index > last) target.appendChild(document.createTextNode(text.slice(last, match.index)));
+          const token = match[0];
+          if (token.startsWith("**")) {
+            const strong = document.createElement("strong");
+            strong.textContent = token.slice(2, -2);
+            target.appendChild(strong);
+          } else if (token.startsWith("`")) {
+            const code = document.createElement("code");
+            code.textContent = token.slice(1, -1);
+            target.appendChild(code);
+          } else {
+            const link = document.createElement("a");
+            const url = token.replace(/[.,;:)]}]+$/, "");
+            const trailing = token.slice(url.length);
+            link.href = url;
+            link.target = "_blank";
+            link.rel = "noreferrer";
+            link.textContent = url;
+            target.appendChild(link);
+            if (trailing) target.appendChild(document.createTextNode(trailing));
+          }
+          last = match.index + token.length;
+        }
+        if (last < text.length) target.appendChild(document.createTextNode(text.slice(last)));
       }
 
       function appendMessage(item) {
@@ -936,7 +987,7 @@
             if (event === "status") statusText.textContent = data.message || "";
             if (event === "token") {
               answer += data.text || "";
-              assistant.content.textContent = answer;
+              renderMessageContent(assistant.content, answer);
               chatLog.scrollTop = chatLog.scrollHeight;
             }
             if (event === "error") throw new Error(data.message || "Chat failed");

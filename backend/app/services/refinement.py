@@ -168,7 +168,7 @@ def _book_text(values) -> str:
         text = text[: match.start()]
     text = ORDINAL_LINE.sub("", text)
     text = BOOK_LABEL.sub("", text)
-    return PAGE_NOISE.sub(" ", text)
+    return PAGE_NOISE.sub("\n", text)
 
 
 def _books(*values) -> list[str]:
@@ -189,7 +189,7 @@ def _books(*values) -> list[str]:
         item = re.sub(r"\bBook\(s\):\s*", "", item, flags=re.IGNORECASE).strip(" :")
         if not item:
             continue
-        if books and (item.startswith("(") or _words(item) <= 3):
+        if books and (item.startswith("(") or (_words(item) <= 3 and not re.search(r"\b\d{4}\b", item))):
             books[-1] = f"{books[-1]} {item}".strip()
             seen = {re.sub(r"[^a-z0-9]+", " ", book.lower()).strip() for book in books}
             continue
