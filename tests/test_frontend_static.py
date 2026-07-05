@@ -55,3 +55,10 @@ def test_old_frontend_urls_redirect():
     assert 'content="0;url=form/"' in Path("frontend/form.html").read_text()
     assert 'content="0;url=preview/"' in Path("frontend/preview.html").read_text()
     assert 'content="0;url=live-editor/"' in Path("frontend/live-editor.html").read_text()
+
+
+def test_dockerfile_copies_frontend_site():
+    text = Path("Dockerfile").read_text()
+
+    assert "COPY frontend/ /frontend/" in text
+    assert "COPY frontend/images/" not in text
