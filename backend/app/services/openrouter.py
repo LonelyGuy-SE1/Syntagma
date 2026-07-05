@@ -13,6 +13,21 @@ MODEL = os.environ["OPENROUTER_MODEL"].strip()
 logger = logging.getLogger(__name__)
 
 
+class OpenRouterError(RuntimeError):
+    def __init__(self, status_code: int, retry_after: str | None = None):
+        self.status_code = status_code
+        self.retry_after = retry_after
+        super().__init__(self.message)
+
+    @property
+    def message(self) -> str:
+        if self.status_code in {429, 503}:
+            if self.retry_after:
+                return f"Model provider is rate limited. Try again in {self.retry_after} seconds."
+            return "Model provider is rate limited. Please try again shortly."
+        return "Model provider request failed. Please try again later."
+
+
 def _messages(system: str, messages: list[dict]) -> list[dict]:
     return [{"role": "system", "content": system}, *messages]
 
@@ -28,6 +43,13 @@ def _message_content(data: dict) -> str:
         raise RuntimeError(f"OpenRouter response missing assistant message: {data.get('error') or data}") from exc
 
 
+def _raise_for_status(response) -> None:
+    try:
+        response.raise_for_status()
+    except HTTPStatusError as exc:
+        raise OpenRouterError(exc.response.status_code, exc.response.headers.get("retry-after")) from exc
+
+
 def call(system: str, user: str) -> dict:
     with Client(timeout=120) as c:
         r = c.post(
@@ -35,7 +57,7 @@ def call(system: str, user: str) -> dict:
             headers=_headers(),
             json={"model": MODEL, "messages": _messages(system, [{"role": "user", "content": user}])},
         )
-        r.raise_for_status()
+        _raise_for_status(r)
         data = r.json()
         if "choices" not in data:
             raise RuntimeError(f"OpenRouter response missing choices: {data.get('error') or data}")
@@ -78,7 +100,7 @@ def _stream_chat(messages: list[dict]):
 def _chat_text(messages: list[dict]) -> str:
     with Client(timeout=120) as client:
         response = client.post(URL, headers=_headers(), json={"model": MODEL, "messages": messages})
-        response.raise_for_status()
+        _raise_for_status(response)
         return _message_content(response.json())
 
 

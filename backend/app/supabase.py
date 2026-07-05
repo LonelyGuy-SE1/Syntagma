@@ -7,7 +7,7 @@ load_dotenv("../.env")
 
 url = environ["SUPABASE_URL"].strip()
 key = environ["SUPABASE_KEY"].strip()
-supabase=create_client(
+supabase = create_client(
     supabase_url=url,
     supabase_key=key,
     options=ClientOptions(

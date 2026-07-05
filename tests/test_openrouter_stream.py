@@ -2,6 +2,7 @@ import importlib
 import sys
 
 import httpx
+import pytest
 
 
 def load_openrouter(monkeypatch):
@@ -68,3 +69,29 @@ def test_stream_chat_falls_back_to_normal_completion(monkeypatch):
     monkeypatch.setattr(openrouter, "Client", FakeClient)
 
     assert "".join(openrouter.stream_chat("system", [{"role": "user", "content": "hello"}])) == "fallback reply"
+
+
+def test_rate_limit_error_includes_retry_after(monkeypatch):
+    openrouter = load_openrouter(monkeypatch)
+    request = httpx.Request("POST", "https://openrouter.test")
+
+    class FakeClient:
+        def __init__(self, *_, **__):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def post(self, *_, **__):
+            return httpx.Response(429, headers={"retry-after": "60"}, request=request)
+
+    monkeypatch.setattr(openrouter, "Client", FakeClient)
+
+    with pytest.raises(openrouter.OpenRouterError) as error:
+        openrouter._chat_text([{"role": "user", "content": "hello"}])
+
+    assert error.value.status_code == 429
+    assert error.value.message == "Model provider is rate limited. Try again in 60 seconds."

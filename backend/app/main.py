@@ -11,7 +11,11 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 sentry_dsn = os.getenv("SENTRY_DSN", "").strip()
 if sentry_dsn:
-    sentry_sdk.init(dsn=sentry_dsn)
+    sentry_config = {"dsn": sentry_dsn, "environment": os.getenv("SENTRY_ENVIRONMENT", "").strip() or "production"}
+    sentry_release = os.getenv("SENTRY_RELEASE", "").strip()
+    if sentry_release:
+        sentry_config["release"] = sentry_release
+    sentry_sdk.init(**sentry_config)
 
 from app.api import router
 

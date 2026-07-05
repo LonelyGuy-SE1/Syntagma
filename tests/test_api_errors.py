@@ -1,6 +1,6 @@
 from postgrest.exceptions import APIError
 
-from app.api import database_http_exception
+from app.services.errors import database_http_exception
 
 
 def test_missing_schema_error_is_service_unavailable():
