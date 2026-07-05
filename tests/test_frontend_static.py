@@ -65,6 +65,12 @@ def test_dockerfile_copies_frontend_site():
     assert "COPY frontend/images/" not in text
 
 
+def test_dockerignore_keeps_frontend_site():
+    text = Path(".dockerignore").read_text()
+
+    assert "frontend/**" not in text
+
+
 def test_frontend_routes_mount(monkeypatch):
     monkeypatch.setenv("SENTRY_DSN", "")
     from app.main import app
