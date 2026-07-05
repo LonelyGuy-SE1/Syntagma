@@ -20,7 +20,7 @@ from app.services.curriculum import attach_submissions, draft_record, load_agent
 from app.services.diffing import diff_course
 from app.services.openrouter import stream_chat
 from app.services.refinement import refine
-from app.supabase import supabase
+from app.supabase import first_row, supabase
 
 router = APIRouter()
 APP_DIR = Path(__file__).resolve().parent
@@ -117,12 +117,12 @@ class AgentToolPayload(BaseModel):
 
 def load_chat_session(session_id: int) -> dict:
     try:
-        result = supabase.table("chat_sessions").select("*").eq("id", session_id).maybe_single().execute()
+        row = first_row(supabase.table("chat_sessions").select("*").eq("id", session_id))
     except APIError as exc:
         raise database_http_exception(exc) from exc
-    if not result.data:
+    if not row:
         raise HTTPException(status_code=404, detail="Chat session not found")
-    return result.data
+    return row
 
 
 def chat_messages(session_id: int) -> list[dict]:
@@ -243,10 +243,10 @@ def list_all_courses():
 
 @router.get("/preview/course/{refined_id}")
 def preview_course(refined_id: int):
-    result = supabase.table("refined_submissions").select("*").eq("id", refined_id).maybe_single().execute()
-    if not result.data:
+    row = first_row(supabase.table("refined_submissions").select("*").eq("id", refined_id))
+    if not row:
         raise HTTPException(status_code=404, detail="Refined submission not found")
-    row = attach_submissions([result.data])[0]
+    row = attach_submissions([row])[0]
     html = templates.get_template("jinja_sample.html").render(
         course=build_course_preview(row),
         curriculum_year="2025-2026",
@@ -295,10 +295,10 @@ def refine_submission(id: int):
 
 @router.get("/refined/{refined_id}")
 def get_refined(refined_id: int):
-    result = supabase.table("refined_submissions").select("*").eq("id", refined_id).maybe_single().execute()
-    if not result.data:
+    row = first_row(supabase.table("refined_submissions").select("*").eq("id", refined_id))
+    if not row:
         raise HTTPException(status_code=404, detail="Refined submission not found")
-    row = attach_submissions([result.data])[0]
+    row = attach_submissions([row])[0]
     return {"id": refined_id, "fields": build_course_preview(row)}
 
 

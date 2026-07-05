@@ -14,3 +14,8 @@ supabase=create_client(
         httpx_client=httpx.Client(http2=False),
     ),
 )
+
+
+def first_row(query) -> dict | None:
+    rows = query.limit(1).execute().data
+    return rows[0] if rows else None
