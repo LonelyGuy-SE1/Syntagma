@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Literal
@@ -26,6 +27,7 @@ FRONTEND_DIR = APP_DIR.parent.parent / "frontend"
 templates = Environment(loader=FileSystemLoader(APP_DIR / "templates"), autoescape=select_autoescape(["html", "xml"]))
 URL_RE = re.compile(r"https?://[^\s<>()]+")
 MAX_ATTACHMENT_CONTEXT = 12000
+logger = logging.getLogger(__name__)
 
 
 def linkify(value: str) -> Markup:
@@ -461,6 +463,7 @@ def create_chat_message(session_id: int, payload: ChatMessagePayload):
             message = insert_chat_message(session_id, "assistant", content)
             yield sse("done", {"message_id": message["id"]})
         except Exception as exc:
+            logger.exception("Chat stream failed for session %s", session_id)
             sentry_sdk.capture_exception(exc)
             yield sse("error", {"message": "An internal error occurred. Please try again later."})
 

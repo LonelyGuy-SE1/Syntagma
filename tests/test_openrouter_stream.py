@@ -1,6 +1,8 @@
 import importlib
 import sys
 
+import httpx
+
 
 def load_openrouter(monkeypatch):
     monkeypatch.setenv("OPENROUTER_URL", "https://openrouter.test")
@@ -22,3 +24,35 @@ def test_stream_token_ignores_comments_and_done(monkeypatch):
 
     assert openrouter._stream_token(": OPENROUTER PROCESSING") == ""
     assert openrouter._stream_token("data: [DONE]") == ""
+
+
+def test_stream_chat_falls_back_to_normal_completion(monkeypatch):
+    openrouter = load_openrouter(monkeypatch)
+    request = httpx.Request("POST", "https://openrouter.test")
+
+    class StreamResponse:
+        def __enter__(self):
+            return httpx.Response(400, text="stream unsupported", request=request)
+
+        def __exit__(self, *_):
+            return False
+
+    class FakeClient:
+        def __init__(self, *_, **__):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def stream(self, *_, **__):
+            return StreamResponse()
+
+        def post(self, *_, **__):
+            return httpx.Response(200, json={"choices": [{"message": {"content": "fallback reply"}}]}, request=request)
+
+    monkeypatch.setattr(openrouter, "Client", FakeClient)
+
+    assert "".join(openrouter.stream_chat("system", [{"role": "user", "content": "hello"}])) == "fallback reply"
