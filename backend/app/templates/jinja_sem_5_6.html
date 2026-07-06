@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      @page {
+        size: A4;
+        margin: 14mm 12mm 18mm;
+
+        @bottom-left {
+          content: "P.E.S. University";
+          color: #fff;
+          font: 700 10pt Arial, sans-serif;
+          padding: 4pt 0 4pt 12mm;
+        }
+
+        @bottom-center {
+          content: "Curriculum :- {{ curriculum_year }}";
+          color: #fff;
+          font: 700 10pt Arial, sans-serif;
+          padding: 4pt 0;
+        }
+
+        @bottom-right {
+          content: counter(page) " | Page";
+          color: #fff;
+          font: 700 10pt Arial, sans-serif;
+          padding: 4pt 12mm 4pt 0;
+          text-align: right;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: #000;
+        font-family: Calibri, Arial, sans-serif;
+        font-size: 10pt;
+        line-height: 1.2;
+      }
+
+      .course + .course {
+        break-before: page;
+        page-break-before: always;
+      }
+
+      .letterhead {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12pt;
+        margin-bottom: 10pt;
+      }
+
+      .seal {
+        width: 41px;
+        height: auto;
+      }
+
+      .wordmark {
+        width: 265px;
+        height: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      .meta {
+        margin-bottom: -1pt;
+      }
+
+      th,
+      td {
+        border: 1pt solid #000;
+        padding: 4pt 5pt;
+        vertical-align: top;
+        overflow-wrap: anywhere;
+      }
+
+      th {
+        font-weight: 700;
+        text-align: left;
+      }
+
+      .center {
+        text-align: center;
+      }
+
+      .label {
+        width: 18%;
+      }
+
+      .hour {
+        width: 7%;
+      }
+
+      p {
+        margin: 0 0 5pt;
+      }
+
+      p:last-child {
+        margin-bottom: 0;
+      }
+
+      ul,
+      ol {
+        margin: 0;
+        padding-left: 16pt;
+      }
+
+      li {
+        margin-bottom: 3pt;
+      }
+
+      li:last-child {
+        margin-bottom: 0;
+      }
+
+      .unit-title,
+      .hours {
+        font-weight: 700;
+      }
+
+      .unit {
+        margin-bottom: 8pt;
+      }
+
+      .unit:last-child {
+        margin-bottom: 0;
+      }
+
+      .hours {
+        text-align: right;
+      }
+
+      .empty {
+        margin-top: 18pt;
+        text-align: center;
+        font-weight: 700;
+      }
+
+      .semester-title {
+        text-align: center;
+        font-size: 22px;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+
+      .footer-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: -14mm;
+        height: 9mm;
+        background: #000;
+      }
+    </style>
+  </head>
+<body>
+    <div class="footer-bar"></div>
+    {%  set ns = namespace(number=1)  %}
+    {% set course_list = courses if courses is defined else [course] %}
+    {% if course_list %}
+     
+        <article class="course">
+          <header class="letterhead">
+            <img class="seal" src="{{ asset_root | default('') }}images/image2.png" alt="PES University logo" />
+            <img class="wordmark" src="{{ asset_root | default('') }}images/image1.png" alt="PES University" />
+          </header>
+          <h2 class="semester-title">
+            {{ sem}} SEMESTER {{year}}
+          </h2>
+         
+        {% if sem in [5,6] and ns.number<7 %}
+                <table class="meta"> 
+               
+                  <colgroup>
+                    <col class="hour" />
+                    <col class="label" />
+                    <col class="label" />
+                    <col class="hour" />
+                    <col class="hour" />
+                    <col class="hour" />
+                    <col class="hour" />
+                    <col class="hour" />
+                    <col class="label" />
+                    <col class="label" />
+                  </colgroup>
+                <tbody>
+             
+                    <tr>
+                     <th rowspan="2">Sl. No</th>
+                     <th rowspan="2">Course Code</th>
+                     <th rowspan="2">Course Title</th>
+                     <th colspan="4" class="center">Hours per week</th>
+                     <th class="center">Credits</th>
+                     <th rowspan="2">AI Tool/ Tools/Languages</th>
+                     <th rowspan="2">Courstype</th>
+                    </tr>
+                    <tr>
+                     <th class="center">L</th>
+                     <th class="center">T</th>
+                     <th class="center">P</th>
+                     <th class="center">S</th>
+                     <th class="center">C</th>
+                    </tr>
+                    {% for course in course_list %}
+                    {% if ns.number<7 and course.semester==sem}
+                    
+                    <tr>
+                 
+                     <td class="center">{{ ns.number }}</td>
+                     <td>{{ course.course_code }}</td>
+                     <td>{{ course.course_title }}</td>
+                     <td class="center">{{ course.lecture_hours }}</td>
+                     <td class="center">{{ course.tutorial_hours }}</td>
+                     <td class="center">{{ course.practical_hours }}</td>
+                     <td class="center">{{ course.self_study }}</td>
+                     <td class="center">{{ course.credits }}</td>
+                     <td>{{ course.tools_languages }}</td>
+                    <td>{{ course.course_type }}</td>
+                    </tr>
+                    {% set ns.number=ns.number+1 %}
+                    {% endif %}
+                    {% endfor%}
+                    {%if ns.number==7 %}
+                    <tr>
+                     <th colspan="3" class="center">Total</th> 
+                     <td class="center">22/24</td>
+                     <td class="center">0</td>
+                     <td class="center">4</td>
+                     <td class="center">24</td>
+                     <td class="center">24</td>
+                     <td></td>
+                     <td></td>
+                    </tr>
+                    
+                    {% endif %}
+                    
+                   
+                
+                </tbody>
+               
+                </table>
+            {% if sem== 5 %} 
+                <table class="meta">
+                    <colgroup>
+                      <col class="hour" />
+                     <col class="label" />
+                     <col class="label" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="label" />
+                     <col class="label" />
+                    </colgroup>
+                <tbody>
+                    <tr>
+                      <th colspan="10" class="center">Elective-I</th>
+                    </tr>
+                    
+                    
+                    {%for course in course_list %}
+                    {% if sem==5 %}
+                    {%if course.course_type== "Elective Course" and ns.number<16 %}
+                    
+                    <tr>
+                  
+                     <td class="center">{{ ns.number }}</td>
+                     <td>{{ course.course_code }}</td>
+                     <td>{{ course.course_title }}</td>
+                     <td class="center">{{ course.lecture_hours }}</td>
+                     <td class="center">{{ course.tutorial_hours }}</td>
+                     <td class="center">{{ course.practical_hours }}</td>
+                     <td class="center">{{ course.self_study }}</td>
+                     <td class="center">{{ course.credits }}</td>
+                     <td>{{ course.tools_languages }}</td>
+                    <td>{{ course.course_type }}</td>
+                    </tr>
+                    {% set ns.number= ns.number+1 %}
+                    {% endif %}
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+                </table>
+            {% endif %}  
+             
+                <table class="meta">
+                    <colgroup>
+                      <col class="hour" />
+                     <col class="label" />
+                     <col class="label" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="label" />
+                     <col class="label" />
+                    </colgroup>
+                <tbody>
+                    <tr>
+                      <th colspan="10" class="center">Elective-II</th>
+                    </tr>
+                     
+                    {% set ns = namespace(cou=1) %}
+                    {%for course in course_list %}
+                      {% if sem==5 %}
+                    
+
+                       {%if course.course_type== "Elective Course" and ns.cou>15 %}
+                    
+                    
+                        <tr>
+                         <td class="center">{{ ns.cou }}</td>
+                         <td>{{ course.course_code }}</td>
+                         <td>{{ course.course_title }}</td>
+                         <td class="center">{{ course.lecture_hours }}</td>
+                         <td class="center">{{ course.tutorial_hours }}</td>
+                         <td class="center">{{ course.practical_hours }}</td>
+                         <td class="center">{{ course.self_study }}</td>
+                         <td class="center">{{ course.credits }}</td>
+                         <td>{{ course.tools_languages }}</td>
+                         <td>{{ course.course_type }}</td>
+                        </tr>
+                    
+                      {% endif %}
+                    {% set ns.cou= ns.cou+1 %}
+                    {% endif %}
+
+                    {% endfor %}
+                </tbody>    
+
+                </table>
+        
+            
+            {% if sem== 6 %} 
+                <table class="meta">
+                    <colgroup>
+                      <col class="hour" />
+                     <col class="label" />
+                     <col class="label" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="label" />
+                     <col class="label" />
+                    </colgroup>
+                <tbody>
+                    <tr>
+                      <th colspan="10" class="center">Elective-III</th>
+                    </tr>
+                    {%for course in course_list %}
+                    {%if sem==6%}
+                    {%if ns.number==15 %}
+                     
+                     <tr>
+                         <td class="center">{{ ns.number }}</td>
+                         <td>{{ course.course_code }}</td>
+                         <td colspan="8" class="center">NO Course offered</td>
+
+                     </tr>
+                     {% set ns.number= ns.number+1 %}
+                     {% continue %}
+                    {% endif %}
+                    {%if course.course_type== "Elective Course" and ns.number<17 and  ns.number!= 15 %}
+                    
+                     <tr>
+                  
+                         <td class="center">{{ ns.number }}</td>
+                         <td>{{ course.course_code }}</td>
+                         <td>{{ course.course_title }}</td>
+                         <td class="center">{{ course.lecture_hours }}</td>
+                         <td class="center">{{ course.tutorial_hours }}</td>
+                         <td class="center">{{ course.practical_hours }}</td>
+                         <td class="center">{{ course.self_study }}</td>
+                         <td class="center">{{ course.credits }}</td>
+                         <td>{{ course.tools_languages }}</td>
+                         <td>{{ course.course_type }}</td>
+                     </tr>
+                     {% set ns.number= ns.number+1 %}
+                    {% endif %}
+                    {% endif %}
+                    {% endfor %}
+                </tbody>    
+
+                </table>
+            {% endif %}
+           
+                <table class="meta">
+                    <colgroup>
+                      <col class="hour" />
+                     <col class="label" />
+                     <col class="label" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="hour" />
+                     <col class="label" />
+                     <col class="label" />
+                    </colgroup>
+                <tbody>
+                    <tr>
+                      <th colspan="10" class="center">Elective-IV</th>
+                    </tr>
+                    {% set ns = namespace(count=1) %}
+                    {%for course in course_list %}
+                     {% if sem==6 %}
+                      {%if course.course_type== "Elective Course" and ns.count>16 %}
+                       
+                        <tr>
+                  
+                         <td class="center">{{ ns.count }}</td>
+                         <td>{{ course.course_code }}</td>
+                         <td>{{ course.course_title }}</td>
+                         <td class="center">{{ course.lecture_hours }}</td>
+                         <td class="center">{{ course.tutorial_hours }}</td>
+                         <td class="center">{{ course.practical_hours }}</td>
+                         <td class="center">{{ course.self_study }}</td>
+                         <td class="center">{{ course.credits }}</td>
+                         <td>{{ course.tools_languages }}</td>
+                         <td>{{ course.course_type }}</td>
+                        </tr>
+                        {% endif %}
+                       {% set ns.count=ns.count+1 %}
+                     
+                     {% endif %} 
+                    {% endfor %}
+                </tbody>    
+
+                </table>
+                
+        {% endif %} 
+        </article>
+    {%endif%}
+</body>             
