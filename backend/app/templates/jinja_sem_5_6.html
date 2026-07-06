@@ -5,7 +5,7 @@
 {% macro course_row(course, number) -%}
   <tr>
     <td class="center">{{ number }}</td>
-    <td>{{ course.course_code }}</td>
+    <td>{{ course.course_code | course_code_for_year(course.semester, curriculum_year) }}</td>
     <td>{{ course.course_title }}</td>
     <td class="center">{{ course.lecture_hours }}</td>
     <td class="center">{{ course.tutorial_hours }}</td>
@@ -19,6 +19,12 @@
 
 {% macro total_cell(total, credit_total) -%}
   {% if total != credit_total %}{{ credit_total }}/{{ total }}{% else %}{{ total }}{% endif %}
+{%- endmacro %}
+
+{% macro specialization_codes(codes, summary_semester, curriculum_year) -%}
+  {% for code in codes %}
+    <p>{{ ("UE00CS" ~ code) | course_code_for_year(summary_semester, curriculum_year) }}</p>
+  {% endfor %}
 {%- endmacro %}
 
 {% set requested_semester = semester|string if semester is defined and semester else "" %}
@@ -73,7 +79,7 @@
           <img class="seal" src="{{ asset_root | default('') }}images/image2.png" alt="PES University logo" />
           <img class="wordmark" src="{{ asset_root | default('') }}images/image1.png" alt="PES University" />
         </header>
-        <h2 class="semester-title">{{ semester_name(summary_semester) }} SEMESTER {{ curriculum_year }}</h2>
+        <h2 class="semester-title">{{ semester_name(summary_semester) }} SEMESTER {{ batch_label(summary_semester, curriculum_year) }}</h2>
 
         {% if totals.count %}
           <table class="meta summary-table">
@@ -85,7 +91,7 @@
               <col class="summary-hour" />
               <col class="summary-hour" />
               <col class="summary-hour" />
-              <col class="summary-hour" />
+              <col class="summary-credit" />
               <col />
               <col class="summary-type" />
             </colgroup>
@@ -95,7 +101,7 @@
                 <th rowspan="2">Course Code</th>
                 <th rowspan="2">Course Title</th>
                 <th colspan="4" class="center">Hours per week</th>
-                <th class="center">Credits</th>
+                <th class="center nowrap">Credits</th>
                 <th rowspan="2">AI Tools / Tools / Languages</th>
                 <th rowspan="2">Course Type</th>
               </tr>
@@ -145,7 +151,7 @@
                 <col class="summary-hour" />
                 <col class="summary-hour" />
                 <col class="summary-hour" />
-                <col class="summary-hour" />
+                <col class="summary-credit" />
                 <col />
                 <col class="summary-type" />
               </colgroup>
@@ -177,6 +183,41 @@
             </table>
           {% endif %}
         {% endfor %}
+
+        {% if summary_semester == 5 %}
+          {% set specializations = [
+            {"letter": "A", "name": "System and Core Computing (SCC)", "elective_i": ["342AA1", "342AA8", "342AA9"], "elective_ii": ["343AB1", "343AB2", "343AB3", "343AB4", "343AB8"]},
+            {"letter": "B", "name": "Machine Intelligence and Data Science (MIDS)", "elective_i": ["342AA2", "342AA5", "342AA6", "342AA8"], "elective_ii": ["343AB1", "343AB2", "343AB7"]},
+            {"letter": "C", "name": "Cyber Security and Connected Systems (CSCS)", "elective_i": ["342AA3", "342AA4", "342AA5", "342AA7"], "elective_ii": ["343AB5", "343AB6", "343AB7"]},
+          ] %}
+          <table class="meta summary-table specialization-table">
+            <colgroup>
+              <col class="summary-number" />
+              <col />
+              <col class="summary-title-column" />
+              <col class="summary-title-column" />
+            </colgroup>
+            <tbody>
+              <tr>
+                <th colspan="4" class="center">ELECTIVES TO BE OPTED FOR SPECIALIZATION</th>
+              </tr>
+              <tr>
+                <th class="center">Sl. No.</th>
+                <th>Specialization</th>
+                <th>Elective-I</th>
+                <th>Elective-II</th>
+              </tr>
+              {% for specialization in specializations %}
+                <tr>
+                  <td class="center">{{ specialization.letter }}</td>
+                  <td>{{ specialization.name }}</td>
+                  <td>{{ specialization_codes(specialization.elective_i, summary_semester, curriculum_year) }}</td>
+                  <td>{{ specialization_codes(specialization.elective_ii, summary_semester, curriculum_year) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
       </article>
     {% endif %}
   {% endif %}

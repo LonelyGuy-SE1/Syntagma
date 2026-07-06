@@ -147,14 +147,18 @@
       }
 
       .semester-title {
-        margin: 0 0 10pt;
+        margin: 0 0 8pt;
         text-align: center;
-        font-size: 14pt;
+        font-size: 11pt;
         font-weight: 700;
       }
 
       .summary-table {
         margin-bottom: 8pt;
+      }
+
+      .specialization-table p {
+        margin: 0 0 2pt;
       }
 
       .summary-table th,
@@ -179,8 +183,16 @@
         width: 5%;
       }
 
+      .summary-credit {
+        width: 7%;
+      }
+
       .summary-type {
         width: 13%;
+      }
+
+      .nowrap {
+        white-space: nowrap;
       }
 
       .empty {
@@ -228,7 +240,7 @@
             <tbody>
               <tr>
                 <th>Course Code</th>
-                <td>{{ course.course_code }}</td>
+                <td>{{ course.course_code | course_code_for_year(course.semester, curriculum_year) }}</td>
                 <th>Course Title</th>
                 <td colspan="5">{{ course.course_title }}</td>
               </tr>

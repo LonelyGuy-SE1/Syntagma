@@ -1,6 +1,10 @@
+from os import environ
+
 from app.preview import build_course_preview
 from app.services.diffing import diff_course, merge_fields, validate_draft
 from app.supabase import first_row, supabase
+
+DEFAULT_CURRICULUM_YEAR = environ.get("CURRICULUM_YEAR", "").strip()
 
 REFINED_FIELDS = {
     "semester",
@@ -41,6 +45,10 @@ def ordered_courses(rows: list[dict]) -> list[dict]:
     rows = attach_submissions(rows)
     rows.sort(key=lambda row: (int(row.get("semester") or 0), int(row.get("id") or 0)))
     return [build_course_preview(row) for row in rows]
+
+
+def selected_curriculum_year(value: str | None = None) -> str:
+    return str(value or "").strip() or DEFAULT_CURRICULUM_YEAR
 
 
 def refined_course(refined_id: int) -> dict:

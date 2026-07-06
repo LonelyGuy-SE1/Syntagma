@@ -4,13 +4,12 @@ from postgrest.exceptions import APIError
 
 from app.preview import build_course_preview
 from app.rendering import templates
-from app.services.curriculum import attach_submissions, update_refined_fields
+from app.services.curriculum import attach_submissions, selected_curriculum_year, update_refined_fields
 from app.services.diffing import diff_course
 from app.services.errors import database_http_exception
 from app.supabase import first_row, supabase
 
 router = APIRouter()
-CURRICULUM_YEAR = "2025-2026"
 
 
 def _version(version_id: int) -> dict:
@@ -68,7 +67,7 @@ def create_version(payload: dict):
                 {
                     "name": name,
                     "program": str(payload.get("program") or (courses[0]["course_json"].get("program") if courses else "") or "").strip(),
-                    "academic_year": str(payload.get("academic_year") or CURRICULUM_YEAR).strip(),
+                    "academic_year": selected_curriculum_year(payload.get("academic_year")),
                     "status": str(payload.get("status") or "draft").strip(),
                 }
             )
@@ -167,7 +166,7 @@ def preview_version_course(version_id: int, refined_id: int):
     except APIError as exc:
         raise database_http_exception(exc) from exc
     version = _version(version_id)
-    html = templates.get_template("jinja_sample.html").render(course=snapshot["course_json"], curriculum_year=version.get("academic_year") or CURRICULUM_YEAR, asset_root="/")
+    html = templates.get_template("jinja_sample.html").render(course=snapshot["course_json"], curriculum_year=selected_curriculum_year(version.get("academic_year")), asset_root="/")
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
@@ -192,7 +191,7 @@ def preview_version(version_id: int):
     html = templates.get_template("jinja_sample.html").render(
         courses=courses,
         semester="",
-        curriculum_year=version.get("academic_year") or CURRICULUM_YEAR,
+        curriculum_year=selected_curriculum_year(version.get("academic_year")),
         asset_root="/",
         show_summaries=True,
     )
