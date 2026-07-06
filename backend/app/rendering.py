@@ -8,6 +8,7 @@ APP_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = APP_DIR.parent.parent / "frontend"
 templates = Environment(loader=FileSystemLoader(APP_DIR / "templates"), autoescape=select_autoescape(["html", "xml"]))
 URL_RE = re.compile(r"https?://[^\s<>()]+")
+YEAR_RE = re.compile(r"\d{4}")
 
 
 def linkify(value: str) -> Markup:
@@ -27,4 +28,30 @@ def linkify(value: str) -> Markup:
     return Markup("".join(str(part) for part in parts))
 
 
+def batch_start_year(semester, curriculum_year: str) -> int | None:
+    match = YEAR_RE.search(str(curriculum_year or ""))
+    if not match:
+        return None
+    try:
+        sem = int(semester)
+    except (TypeError, ValueError):
+        return None
+    return int(match.group()) - ((sem - 1) // 2)
+
+
+def batch_label(semester, curriculum_year: str) -> str:
+    start = batch_start_year(semester, curriculum_year)
+    return f"({start}-{(start + 4) % 100:02d} BATCH)" if start else ""
+
+
+def course_code_for_year(value: str, semester, curriculum_year: str) -> str:
+    code = str(value or "")
+    start = batch_start_year(semester, curriculum_year)
+    if not start or len(code) < 5 or code[:2] not in {"UE", "UZ"} or not code[2:4].isdigit():
+        return code
+    return f"{code[:2]}{start % 100:02d}{code[4:]}"
+
+
 templates.filters["linkify"] = linkify
+templates.filters["course_code_for_year"] = course_code_for_year
+templates.globals["batch_label"] = batch_label

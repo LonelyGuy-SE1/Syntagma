@@ -5,7 +5,7 @@ from postgrest.exceptions import APIError
 from app.models.agent import AgentDocumentDraftPayload, AgentDraftPayload, AgentToolPayload
 from app.rendering import templates
 from app.services.agent_tools import call_tool, list_tool_schemas
-from app.services.curriculum import draft_record, load_agent_draft, load_document_draft, update_refined_fields
+from app.services.curriculum import draft_record, load_agent_draft, load_document_draft, selected_curriculum_year, update_refined_fields
 from app.services.diffing import diff_course
 from app.services.errors import database_http_exception
 from app.supabase import supabase
@@ -74,7 +74,7 @@ def preview_agent_draft(draft_id: int):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except APIError as exc:
         raise database_http_exception(exc) from exc
-    html = templates.get_template("jinja_sample.html").render(course=draft["proposed_json"], curriculum_year="2025-2026", asset_root="/")
+    html = templates.get_template("jinja_sample.html").render(course=draft["proposed_json"], curriculum_year=selected_curriculum_year(), asset_root="/")
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
@@ -198,7 +198,13 @@ def preview_agent_document_draft(document_draft_id: int):
         (draft["proposed_json"] for draft in drafts),
         key=lambda course: (int(course.get("semester") or 0), str(course.get("course_code") or ""), str(course.get("course_title") or "")),
     )
-    html = templates.get_template("jinja_sample.html").render(courses=courses, semester="", curriculum_year="2025-2026", asset_root="/")
+    html = templates.get_template("jinja_sample.html").render(
+        courses=courses,
+        semester="",
+        curriculum_year=selected_curriculum_year(),
+        asset_root="/",
+        show_summaries=True,
+    )
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 

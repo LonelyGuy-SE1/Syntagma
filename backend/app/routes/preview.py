@@ -4,7 +4,7 @@ from weasyprint import HTML
 
 from app.preview import build_course_preview
 from app.rendering import FRONTEND_DIR, templates
-from app.services.curriculum import attach_submissions, ordered_courses
+from app.services.curriculum import attach_submissions, ordered_courses, selected_curriculum_year
 from app.supabase import first_row, supabase
 
 router = APIRouter()
@@ -24,33 +24,45 @@ def list_all_courses():
 
 
 @router.get("/preview/course/{refined_id}")
-def preview_course(refined_id: int):
+def preview_course(refined_id: int, curriculum_year: str = Query("")):
     row = first_row(supabase.table("refined_submissions").select("*").eq("id", refined_id))
     if not row:
         raise HTTPException(status_code=404, detail="Refined submission not found")
     row = attach_submissions([row])[0]
     html = templates.get_template("jinja_sample.html").render(
         course=build_course_preview(row),
-        curriculum_year="2025-2026",
+        curriculum_year=selected_curriculum_year(curriculum_year),
         asset_root="/",
     )
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
 @router.get("/preview/pdf")
-def download_all_pdf(download: bool = Query(False)):
+def download_all_pdf(download: bool = Query(False), curriculum_year: str = Query("")):
     result = supabase.table("refined_submissions").select("*").neq("status", "archived").execute()
     courses = ordered_courses(result.data)
-    html = templates.get_template("jinja_sample.html").render(courses=courses, semester="", curriculum_year="2025-2026", asset_root="")
+    html = templates.get_template("jinja_sample.html").render(
+        courses=courses,
+        semester="",
+        curriculum_year=selected_curriculum_year(curriculum_year),
+        asset_root="",
+        show_summaries=True,
+    )
     pdf = HTML(string=html, base_url=str(FRONTEND_DIR)).write_pdf()
     return pdf_response(pdf, "curriculum-preview.pdf", download)
 
 
 @router.get("/preview/semester/{sem}/pdf")
-def download_pdf(sem: int, download: bool = Query(False)):
+def download_pdf(sem: int, download: bool = Query(False), curriculum_year: str = Query("")):
     result = supabase.table("refined_submissions").select("*").neq("status", "archived").eq("semester", sem).order("id").execute()
     courses = ordered_courses(result.data)
-    html = templates.get_template("jinja_sample.html").render(courses=courses, semester=sem, curriculum_year="2025-2026", asset_root="")
+    html = templates.get_template("jinja_sample.html").render(
+        courses=courses,
+        semester=sem,
+        curriculum_year=selected_curriculum_year(curriculum_year),
+        asset_root="",
+        show_summaries=True,
+    )
     pdf = HTML(string=html, base_url=str(FRONTEND_DIR)).write_pdf()
     return pdf_response(pdf, f"semester-{sem}.pdf", download)
 
