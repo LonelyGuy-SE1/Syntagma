@@ -42,7 +42,9 @@
         line-height: 1.2;
       }
 
-      .course + .course {
+      .course + .course,
+      .summary-page + .summary-page,
+      .summary-page + .course {
         break-before: page;
         page-break-before: always;
       }
@@ -144,6 +146,43 @@
         text-decoration: underline;
       }
 
+      .semester-title {
+        margin: 0 0 10pt;
+        text-align: center;
+        font-size: 14pt;
+        font-weight: 700;
+      }
+
+      .summary-table {
+        margin-bottom: 8pt;
+      }
+
+      .summary-table th,
+      .summary-table td {
+        padding: 3pt 4pt;
+        font-size: 9pt;
+      }
+
+      .summary-number {
+        width: 6%;
+      }
+
+      .summary-code {
+        width: 14%;
+      }
+
+      .summary-title-column {
+        width: 26%;
+      }
+
+      .summary-hour {
+        width: 5%;
+      }
+
+      .summary-type {
+        width: 13%;
+      }
+
       .empty {
         margin-top: 18pt;
         text-align: center;
@@ -164,6 +203,10 @@
     <div class="footer-bar"></div>
     {% set course_list = courses if courses is defined else [course] %}
     {% if course_list %}
+      {% if show_summaries | default(false) %}
+        {% include "jinja_1_to_8.html" %}
+        {% include "jinja_sem_5_6.html" %}
+      {% endif %}
       {% for course in course_list %}
         <article class="course">
           <header class="letterhead">
