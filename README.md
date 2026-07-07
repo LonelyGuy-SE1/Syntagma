@@ -9,6 +9,10 @@ pinned: false
 
 # Curriculum Automation
 
+## Doc link
+
+https://lonelyguy-se1.github.io/PESU-Curriculum-Automation/
+
 ## Phase 1 Flow Proposal
 
 ```mermaid id="phase1-flow"
