@@ -175,7 +175,7 @@ async function refreshChatSessions() {
   chatSession.replaceChildren(...sessions.map((item) => option(String(item.id), sessionTitle(item))));
   if (activeSessionId) chatSession.value = activeSessionId;
   const selected = sessions.find((item) => String(item.id) === chatSession.value);
-  chatTitle.value = selected?.title || "";
+  if (chatTitle.hidden) chatTitle.value = selected?.title || "";
 }
 
 async function createChatSession() {
@@ -194,7 +194,10 @@ async function createChatSession() {
 }
 
 async function renameActiveChat() {
-  if (!activeSessionId || !chatTitle.value.trim()) return;
+  if (!activeSessionId || !chatTitle.value.trim()) {
+    exitRenameMode();
+    return;
+  }
   const response = await fetch(`/api/chat/sessions/${activeSessionId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -203,6 +206,23 @@ async function renameActiveChat() {
   if (!response.ok) throw new Error(await errorMessage(response, "Rename failed"));
   await refreshChatSessions();
   setStatus("Thread renamed.", "ready");
+  exitRenameMode();
+}
+
+function enterRenameMode() {
+  if (!activeSessionId) return;
+  const currentTitle = chatSession.options[chatSession.selectedIndex]?.text || "";
+  chatTitle.value = currentTitle;
+  chatTitle.hidden = false;
+  document.querySelector(".thread-selector").hidden = true;
+  chatTitle.focus();
+  chatTitle.select();
+}
+
+function exitRenameMode() {
+  chatTitle.hidden = true;
+  const selector = document.querySelector(".thread-selector");
+  if (selector) selector.hidden = false;
 }
 
 async function deleteActiveChat() {
@@ -714,7 +734,25 @@ chatSession.addEventListener("change", async () => {
   await renderMessages();
 });
 
-renameChat.addEventListener("click", () => renameActiveChat().catch(showError));
+renameChat.addEventListener("click", () => enterRenameMode());
+chatTitle.addEventListener("keydown", async (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    try {
+      await renameActiveChat();
+    } catch (error) {
+      showError(error);
+    }
+  }
+  if (e.key === "Escape") {
+    exitRenameMode();
+  }
+});
+chatTitle.addEventListener("blur", () => {
+  setTimeout(() => {
+    if (!chatTitle.hidden) exitRenameMode();
+  }, 150);
+});
 deleteChat.addEventListener("click", () => deleteActiveChat().catch(showError));
 
 newChat.addEventListener("click", async () => {
