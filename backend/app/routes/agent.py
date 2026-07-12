@@ -15,27 +15,83 @@ from app.supabase import supabase
 router = APIRouter()
 
 
-def _changed_fields(base: dict, proposed: dict) -> list[dict]:
-    changes = []
-    all_keys = set(base.keys()) | set(proposed.keys())
-    for key in sorted(all_keys):
-        if key.startswith("_"):
-            continue
-        old = base.get(key)
-        new = proposed.get(key)
-        if old != new:
-            label = key.replace("_", " ").title()
-            changes.append({"field": label, "old": _fmt(old), "new": _fmt(new)})
-    return changes
+def _diff_text_field(old: str, new: str) -> dict | None:
+    """Return diff for a simple text field if changed, else None."""
+    if old == new:
+        return None
+    return {"kind": "text", "old": old or "", "new": new or ""}
 
 
-def _fmt(v) -> str:
-    if isinstance(v, list):
-        return ", ".join(
-            str(x) if not isinstance(x, dict) else x.get("title", str(x)[:80])
-            for x in v
-        )
-    return str(v) if v is not None else ""
+def _diff_list_field(old: list, new: list) -> dict | None:
+    """Return diff for a list field if changed, else None."""
+    if old == new:
+        return None
+    old_set = set(old)
+    new_set = set(new)
+    return {
+        "kind": "list",
+        "removed": sorted(old_set - new_set),
+        "added": sorted(new_set - old_set),
+        "unchanged": sorted(old_set & new_set),
+    }
+
+
+def _diff_units_field(old_units: list, new_units: list) -> dict | None:
+    """Return diff for units field if changed, else None."""
+    if old_units == new_units:
+        return None
+    # Match units by title
+    old_by_title = {u.get("title", ""): u for u in old_units if isinstance(u, dict)}
+    new_by_title = {u.get("title", ""): u for u in new_units if isinstance(u, dict)}
+    all_titles = sorted(set(old_by_title.keys()) | set(new_by_title.keys()))
+    
+    units_diff = []
+    for title in all_titles:
+        old_u = old_by_title.get(title)
+        new_u = new_by_title.get(title)
+        if old_u and not new_u:
+            units_diff.append({"kind": "removed", "unit": old_u})
+        elif new_u and not old_u:
+            units_diff.append({"kind": "added", "unit": new_u})
+        else:
+            # Both exist - diff their fields
+            unit_changes = {}
+            for field in ("title", "content", "hours"):
+                ov = old_u.get(field, "")
+                nv = new_u.get(field, "")
+                if ov != nv:
+                    unit_changes[field] = {"old": ov, "new": nv}
+            if unit_changes:
+                units_diff.append({"kind": "changed", "unit": new_u, "changes": unit_changes})
+            else:
+                units_diff.append({"kind": "unchanged", "unit": new_u})
+    return {"kind": "units", "units": units_diff}
+
+
+def _build_course_diff(base: dict, proposed: dict) -> dict:
+    """Build a structured diff for a course, suitable for template rendering."""
+    diff = {
+        "course_title": _diff_text_field(base.get("course_title", ""), proposed.get("course_title", "")),
+        "course_code": _diff_text_field(base.get("course_code", ""), proposed.get("course_code", "")),
+        "program": _diff_text_field(base.get("program", ""), proposed.get("program", "")),
+        "lecture_hours": _diff_text_field(str(base.get("lecture_hours", "")), str(proposed.get("lecture_hours", ""))),
+        "tutorial_hours": _diff_text_field(str(base.get("tutorial_hours", "")), str(proposed.get("tutorial_hours", ""))),
+        "practical_hours": _diff_text_field(str(base.get("practical_hours", "")), str(proposed.get("practical_hours", ""))),
+        "self_study": _diff_text_field(str(base.get("self_study", "")), str(proposed.get("self_study", ""))),
+        "credits": _diff_text_field(str(base.get("credits", "")), str(proposed.get("credits", ""))),
+        "course_type": _diff_text_field(base.get("course_type", ""), proposed.get("course_type", "")),
+        "semester": _diff_text_field(str(base.get("semester", "")), str(proposed.get("semester", ""))),
+        "tools_languages": _diff_text_field(base.get("tools_languages", ""), proposed.get("tools_languages", "")),
+        "desirable_knowledge": _diff_text_field(base.get("desirable_knowledge", ""), proposed.get("desirable_knowledge", "")),
+        "prelude": _diff_text_field(base.get("prelude", ""), proposed.get("prelude", "")),
+        "objectives": _diff_list_field(base.get("objectives") or [], proposed.get("objectives") or []),
+        "course_outcomes": _diff_list_field(base.get("course_outcomes") or [], proposed.get("course_outcomes") or []),
+        "units": _diff_units_field(base.get("units") or [], proposed.get("units") or []),
+        "lab_experiments": _diff_list_field(base.get("lab_experiments") or [], proposed.get("lab_experiments") or []),
+        "text_books": _diff_list_field(base.get("text_books") or [], proposed.get("text_books") or []),
+        "reference_books": _diff_list_field(base.get("reference_books") or [], proposed.get("reference_books") or []),
+    }
+    return diff
 
 
 @router.post("/agent/diff")
@@ -103,10 +159,11 @@ def preview_agent_draft(draft_id: int, diff: bool = False):
     if diff:
         base = dict(draft.get("base_refined_json") or {})
         proposed = dict(draft.get("proposed_json") or {})
-        changes = _changed_fields(base, proposed)
-        html = templates.get_template("jinja_sample.html").render(
-            courses=[base, proposed],
-            diff_changes=changes,
+        course_diff = _build_course_diff(base, proposed)
+        html = templates.get_template("jinja_diff.html").render(
+            base=base,
+            proposed=proposed,
+            course_diff=course_diff,
             curriculum_year=selected_curriculum_year(),
             asset_root="/",
         )
@@ -281,17 +338,17 @@ def preview_agent_document_draft(document_draft_id: int, diff: bool = False):
         raise HTTPException(status_code=404, detail="Document draft not found")
 
     if diff:
-        courses = []
-        all_changes = []
+        course_diffs = []
         for child in drafts:
             base = dict(child.get("base_refined_json") or {})
             proposed = dict(child.get("proposed_json") or {})
-            course_title = proposed.get("course_title") or base.get("course_title") or f"Course #{child.get('refined_id')}"
-            changes = _changed_fields(base, proposed)
-            if changes:
-                all_changes.append({"course": course_title, "changes": changes})
-            courses.extend([base, proposed])
-        html = templates.get_template("jinja_sample.html").render(courses=courses, diff_changes=all_changes, semester="", curriculum_year=selected_curriculum_year(), asset_root="/")
+            course_diff = _build_course_diff(base, proposed)
+            course_diffs.append({"base": base, "proposed": proposed, "course_diff": course_diff})
+        html = templates.get_template("jinja_diff.html").render(
+            course_diffs=course_diffs,
+            curriculum_year=selected_curriculum_year(),
+            asset_root="/",
+        )
     else:
         courses = sorted(
             (draft["proposed_json"] for draft in drafts),

@@ -4,6 +4,7 @@ const snapshotForm = document.getElementById("snapshot-form");
 const versionName = document.getElementById("version-name");
 const statusText = document.getElementById("status");
 const viewer = document.getElementById("viewer");
+const diffMode = document.getElementById("diff-mode");
 
 function setStatus(text, kind = "") {
   statusText.textContent = text || "";
@@ -32,11 +33,15 @@ async function loadVersions() {
   viewer.src = "/api/preview/pdf";
 }
 
-version.addEventListener("change", () => {
+function loadVersionPreview() {
   if (!version.value) return;
-  viewer.src = `/api/versions/${version.value}/preview`;
-  setStatus(`Viewing snapshot ${version.value}`);
-});
+  const diff = diffMode.checked ? "?diff=1" : "";
+  viewer.src = `/api/versions/${version.value}/preview${diff}`;
+  setStatus(`Viewing snapshot ${version.value}${diff ? " (diff)" : ""}`);
+}
+
+version.addEventListener("change", loadVersionPreview);
+diffMode.addEventListener("change", loadVersionPreview);
 
 openEditor.addEventListener("click", () => {
   if (!version.value) return;

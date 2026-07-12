@@ -37,6 +37,20 @@ def preview_course(refined_id: int, curriculum_year: str = Query("")):
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
+@router.get("/preview/html")
+def preview_all_html(curriculum_year: str = Query("")):
+    result = supabase.table("refined_submissions").select("*").neq("status", "archived").execute()
+    courses = ordered_courses(result.data)
+    html = templates.get_template("jinja_sample.html").render(
+        courses=courses,
+        semester="",
+        curriculum_year=selected_curriculum_year(curriculum_year),
+        asset_root="/",
+        show_summaries=True,
+    )
+    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+
+
 @router.get("/preview/pdf")
 def download_all_pdf(download: bool = Query(False), curriculum_year: str = Query("")):
     result = supabase.table("refined_submissions").select("*").neq("status", "archived").execute()

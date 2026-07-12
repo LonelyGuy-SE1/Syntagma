@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from postgrest.exceptions import APIError
 
@@ -173,7 +173,7 @@ def preview_version_course(version_id: int, refined_id: int):
 
 
 @router.get("/versions/{version_id}/preview")
-def preview_version(version_id: int):
+def preview_version(version_id: int, diff: bool = Query(False)):
     try:
         version = _version(version_id)
         rows = (
@@ -186,15 +186,114 @@ def preview_version(version_id: int):
         )
     except APIError as exc:
         raise database_http_exception(exc) from exc
-    courses = sorted(
+
+    version_courses = sorted(
         (row["course_json"] for row in rows),
         key=lambda course: (int(course.get("semester") or 0), str(course.get("course_code") or ""), str(course.get("course_title") or "")),
     )
-    html = templates.get_template("jinja_sample.html").render(
-        courses=courses,
-        semester="",
+
+    if not diff:
+        html = templates.get_template("jinja_sample.html").render(
+            courses=version_courses,
+            semester="",
+            curriculum_year=selected_curriculum_year(version.get("academic_year")),
+            asset_root="/",
+            show_summaries=True,
+        )
+        return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+
+    # Diff mode: compare version against current refined submissions
+    current_rows = supabase.table("refined_submissions").select("*").neq("status", "archived").execute().data
+    current_rows = attach_submissions(current_rows)
+    current = {row["id"]: build_course_preview(row) for row in current_rows}
+
+    course_diffs = []
+    for v_course in version_courses:
+        refined_id = v_course.get("id")
+        current_course = current.get(refined_id)
+        if current_course:
+            base = dict(current_course)
+            proposed = dict(v_course)
+            course_diff = _build_course_diff(base, proposed)
+            course_diffs.append({"base": base, "proposed": proposed, "course_diff": course_diff})
+
+    html = templates.get_template("jinja_diff.html").render(
+        course_diffs=course_diffs,
         curriculum_year=selected_curriculum_year(version.get("academic_year")),
         asset_root="/",
-        show_summaries=True,
     )
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+
+
+def _diff_text_field(old: str, new: str) -> dict | None:
+    if old == new:
+        return None
+    return {"kind": "text", "old": old or "", "new": new or ""}
+
+
+def _diff_list_field(old: list, new: list) -> dict | None:
+    if old == new:
+        return None
+    old_set = set(old)
+    new_set = set(new)
+    return {
+        "kind": "list",
+        "removed": sorted(old_set - new_set),
+        "added": sorted(new_set - old_set),
+        "unchanged": sorted(old_set & new_set),
+    }
+
+
+def _diff_units_field(old_units: list, new_units: list) -> dict | None:
+    if old_units == new_units:
+        return None
+    old_by_title = {u.get("title", ""): u for u in old_units if isinstance(u, dict)}
+    new_by_title = {u.get("title", ""): u for u in new_units if isinstance(u, dict)}
+    all_titles = sorted(set(old_by_title.keys()) | set(new_by_title.keys()))
+
+    units_diff = []
+    for title in all_titles:
+        old_u = old_by_title.get(title)
+        new_u = new_by_title.get(title)
+        if old_u and not new_u:
+            units_diff.append({"kind": "removed", "unit": old_u})
+        elif new_u and not old_u:
+            units_diff.append({"kind": "added", "unit": new_u})
+        else:
+            unit_changes = {}
+            for field in ("title", "content", "hours"):
+                ov = old_u.get(field, "")
+                nv = new_u.get(field, "")
+                if ov != nv:
+                    unit_changes[field] = {"old": ov, "new": nv}
+            if unit_changes:
+                units_diff.append({"kind": "changed", "unit": new_u, "changes": unit_changes})
+            else:
+                units_diff.append({"kind": "unchanged", "unit": new_u})
+    return {"kind": "units", "units": units_diff}
+
+
+def _build_course_diff(base: dict, proposed: dict) -> dict:
+    """Build a structured diff for a course, suitable for template rendering."""
+    diff = {
+        "course_title": _diff_text_field(base.get("course_title", ""), proposed.get("course_title", "")),
+        "course_code": _diff_text_field(base.get("course_code", ""), proposed.get("course_code", "")),
+        "program": _diff_text_field(base.get("program", ""), proposed.get("program", "")),
+        "lecture_hours": _diff_text_field(str(base.get("lecture_hours", "")), str(proposed.get("lecture_hours", ""))),
+        "tutorial_hours": _diff_text_field(str(base.get("tutorial_hours", "")), str(proposed.get("tutorial_hours", ""))),
+        "practical_hours": _diff_text_field(str(base.get("practical_hours", "")), str(proposed.get("practical_hours", ""))),
+        "self_study": _diff_text_field(str(base.get("self_study", "")), str(proposed.get("self_study", ""))),
+        "credits": _diff_text_field(str(base.get("credits", "")), str(proposed.get("credits", ""))),
+        "course_type": _diff_text_field(base.get("course_type", ""), proposed.get("course_type", "")),
+        "semester": _diff_text_field(str(base.get("semester", "")), str(proposed.get("semester", ""))),
+        "tools_languages": _diff_text_field(base.get("tools_languages", ""), proposed.get("tools_languages", "")),
+        "desirable_knowledge": _diff_text_field(base.get("desirable_knowledge", ""), proposed.get("desirable_knowledge", "")),
+        "prelude": _diff_text_field(base.get("prelude", ""), proposed.get("prelude", "")),
+        "objectives": _diff_list_field(base.get("objectives") or [], proposed.get("objectives") or []),
+        "course_outcomes": _diff_list_field(base.get("course_outcomes") or [], proposed.get("course_outcomes") or []),
+        "units": _diff_units_field(base.get("units") or [], proposed.get("units") or []),
+        "lab_experiments": _diff_list_field(base.get("lab_experiments") or [], proposed.get("lab_experiments") or []),
+        "text_books": _diff_list_field(base.get("text_books") or [], proposed.get("text_books") or []),
+        "reference_books": _diff_list_field(base.get("reference_books") or [], proposed.get("reference_books") or []),
+    }
+    return diff
