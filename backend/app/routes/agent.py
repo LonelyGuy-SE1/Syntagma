@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 from postgrest.exceptions import APIError
@@ -5,12 +7,91 @@ from postgrest.exceptions import APIError
 from app.models.agent import AgentDocumentDraftPayload, AgentDraftPayload, AgentToolPayload
 from app.rendering import templates
 from app.services.agent_tools import call_tool, list_tool_schemas
-from app.services.curriculum import draft_record, load_agent_draft, load_document_draft, selected_curriculum_year, update_refined_fields
+from app.services.curriculum import create_version_snapshot, draft_record, load_agent_draft, load_document_draft, selected_curriculum_year, update_refined_fields
 from app.services.diffing import diff_course
 from app.services.errors import database_http_exception
 from app.supabase import supabase
 
 router = APIRouter()
+
+
+def _diff_text_field(old: str, new: str) -> dict | None:
+    """Return diff for a simple text field if changed, else None."""
+    if old == new:
+        return None
+    return {"kind": "text", "old": old or "", "new": new or ""}
+
+
+def _diff_list_field(old: list, new: list) -> dict | None:
+    """Return diff for a list field if changed, else None."""
+    if old == new:
+        return None
+    old_set = set(old)
+    new_set = set(new)
+    return {
+        "kind": "list",
+        "removed": sorted(old_set - new_set),
+        "added": sorted(new_set - old_set),
+        "unchanged": sorted(old_set & new_set),
+    }
+
+
+def _diff_units_field(old_units: list, new_units: list) -> dict | None:
+    """Return diff for units field if changed, else None."""
+    if old_units == new_units:
+        return None
+    # Match units by title
+    old_by_title = {u.get("title", ""): u for u in old_units if isinstance(u, dict)}
+    new_by_title = {u.get("title", ""): u for u in new_units if isinstance(u, dict)}
+    all_titles = sorted(set(old_by_title.keys()) | set(new_by_title.keys()))
+    
+    units_diff = []
+    for title in all_titles:
+        old_u = old_by_title.get(title)
+        new_u = new_by_title.get(title)
+        if old_u and not new_u:
+            units_diff.append({"kind": "removed", "unit": old_u})
+        elif new_u and not old_u:
+            units_diff.append({"kind": "added", "unit": new_u})
+        else:
+            # Both exist - diff their fields
+            unit_changes = {}
+            for field in ("title", "content", "hours"):
+                ov = old_u.get(field, "")
+                nv = new_u.get(field, "")
+                if ov != nv:
+                    unit_changes[field] = {"old": ov, "new": nv}
+            if unit_changes:
+                units_diff.append({"kind": "changed", "unit": new_u, "changes": unit_changes})
+            else:
+                units_diff.append({"kind": "unchanged", "unit": new_u})
+    return {"kind": "units", "units": units_diff}
+
+
+def _build_course_diff(base: dict, proposed: dict) -> dict:
+    """Build a structured diff for a course, suitable for template rendering."""
+    diff = {
+        "course_title": _diff_text_field(base.get("course_title", ""), proposed.get("course_title", "")),
+        "course_code": _diff_text_field(base.get("course_code", ""), proposed.get("course_code", "")),
+        "program": _diff_text_field(base.get("program", ""), proposed.get("program", "")),
+        "lecture_hours": _diff_text_field(str(base.get("lecture_hours", "")), str(proposed.get("lecture_hours", ""))),
+        "tutorial_hours": _diff_text_field(str(base.get("tutorial_hours", "")), str(proposed.get("tutorial_hours", ""))),
+        "practical_hours": _diff_text_field(str(base.get("practical_hours", "")), str(proposed.get("practical_hours", ""))),
+        "self_study": _diff_text_field(str(base.get("self_study", "")), str(proposed.get("self_study", ""))),
+        "credits": _diff_text_field(str(base.get("credits", "")), str(proposed.get("credits", ""))),
+        "course_type": _diff_text_field(base.get("course_type", ""), proposed.get("course_type", "")),
+        "semester": _diff_text_field(str(base.get("semester", "")), str(proposed.get("semester", ""))),
+        "tools_languages": _diff_text_field(base.get("tools_languages", ""), proposed.get("tools_languages", "")),
+        "desirable_knowledge": _diff_text_field(base.get("desirable_knowledge", ""), proposed.get("desirable_knowledge", "")),
+        "prelude": _diff_text_field(base.get("prelude", ""), proposed.get("prelude", "")),
+        "objectives": _diff_list_field(base.get("objectives") or [], proposed.get("objectives") or []),
+        "course_outcomes": _diff_list_field(base.get("course_outcomes") or [], proposed.get("course_outcomes") or []),
+        "units": _diff_units_field(base.get("units") or [], proposed.get("units") or []),
+        "lab_experiments": _diff_list_field(base.get("lab_experiments") or [], proposed.get("lab_experiments") or []),
+        "text_books": _diff_list_field(base.get("text_books") or [], proposed.get("text_books") or []),
+        "reference_books": _diff_list_field(base.get("reference_books") or [], proposed.get("reference_books") or []),
+    }
+    return diff
 
 
 @router.post("/agent/diff")
@@ -67,14 +148,27 @@ def get_agent_draft(draft_id: int):
 
 
 @router.get("/agent/drafts/{draft_id}/preview")
-def preview_agent_draft(draft_id: int):
+def preview_agent_draft(draft_id: int, diff: bool = False):
     try:
         draft = load_agent_draft(draft_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except APIError as exc:
         raise database_http_exception(exc) from exc
-    html = templates.get_template("jinja_sample.html").render(course=draft["proposed_json"], curriculum_year=selected_curriculum_year(), asset_root="/")
+
+    if diff:
+        base = dict(draft.get("base_refined_json") or {})
+        proposed = dict(draft.get("proposed_json") or {})
+        course_diff = _build_course_diff(base, proposed)
+        html = templates.get_template("jinja_diff.html").render(
+            base=base,
+            proposed=proposed,
+            course_diff=course_diff,
+            curriculum_year=selected_curriculum_year(),
+            asset_root="/",
+        )
+    else:
+        html = templates.get_template("jinja_sample.html").render(course=draft["proposed_json"], curriculum_year=selected_curriculum_year(), asset_root="/")
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
@@ -107,9 +201,10 @@ def apply_agent_draft(draft_id: int):
         ).execute()
         data = update_refined_fields(int(draft["refined_id"]), draft["proposed_json"])
         supabase.table("agent_drafts").update({"status": "applied"}).eq("id", draft_id).execute()
+        version = create_version_snapshot(f"Auto-save before draft #{draft_id} - {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
     except APIError as exc:
         raise database_http_exception(exc) from exc
-    return {"message": "Draft applied", "data": data}
+    return {"message": "Draft applied", "data": data, "version": version}
 
 
 @router.post("/agent/document-drafts")
@@ -173,6 +268,53 @@ def list_agent_document_drafts():
     }
 
 
+@router.post("/agent/document-drafts/{document_draft_id}/apply")
+def apply_agent_document_draft(document_draft_id: int):
+    try:
+        result = load_document_draft(document_draft_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except APIError as exc:
+        raise database_http_exception(exc) from exc
+
+    document = result["document_draft"]
+    drafts = result["drafts"]
+
+    if document.get("status") != "proposed":
+        raise HTTPException(status_code=400, detail="Only proposed document drafts can be applied")
+
+    summary = document.get("diff_summary") or {}
+    if summary.get("courses_with_protected_changes"):
+        raise HTTPException(status_code=400, detail="Document draft contains protected field changes")
+
+    applied = []
+    for draft in drafts:
+        if draft.get("status") != "proposed":
+            continue
+        try:
+            supabase.table("course_revision_history").insert(
+                {
+                    "refined_id": draft["refined_id"],
+                    "agent_draft_id": draft["id"],
+                    "previous_json": draft["base_refined_json"],
+                    "next_json": draft["proposed_json"],
+                    "json_patch": draft["json_patch"],
+                    "diff_summary": draft["diff_summary"],
+                    "change_reason": draft.get("change_reason") or "",
+                }
+            ).execute()
+            update_refined_fields(int(draft["refined_id"]), draft["proposed_json"])
+            supabase.table("agent_drafts").update({"status": "applied"}).eq("id", draft["id"]).execute()
+            applied.append(draft["id"])
+        except APIError as exc:
+            raise database_http_exception(exc) from exc
+
+    supabase.table("agent_document_drafts").update({"status": "applied"}).eq("id", document_draft_id).execute()
+    version = create_version_snapshot(f"Auto-save before document draft #{document_draft_id} - {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
+
+    return {"message": f"Applied {len(applied)} drafts", "applied_draft_ids": applied, "version": version}
+
+
 @router.get("/agent/document-drafts/{document_draft_id}")
 def get_agent_document_draft(document_draft_id: int):
     try:
@@ -184,27 +326,35 @@ def get_agent_document_draft(document_draft_id: int):
 
 
 @router.get("/agent/document-drafts/{document_draft_id}/preview")
-def preview_agent_document_draft(document_draft_id: int):
+def preview_agent_document_draft(document_draft_id: int, diff: bool = False):
     try:
-        drafts = load_document_draft(document_draft_id)["drafts"]
+        result = load_document_draft(document_draft_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except APIError as exc:
         raise database_http_exception(exc) from exc
+    drafts = result["drafts"]
     if not drafts:
         raise HTTPException(status_code=404, detail="Document draft not found")
 
-    courses = sorted(
-        (draft["proposed_json"] for draft in drafts),
-        key=lambda course: (int(course.get("semester") or 0), str(course.get("course_code") or ""), str(course.get("course_title") or "")),
-    )
-    html = templates.get_template("jinja_sample.html").render(
-        courses=courses,
-        semester="",
-        curriculum_year=selected_curriculum_year(),
-        asset_root="/",
-        show_summaries=True,
-    )
+    if diff:
+        course_diffs = []
+        for child in drafts:
+            base = dict(child.get("base_refined_json") or {})
+            proposed = dict(child.get("proposed_json") or {})
+            course_diff = _build_course_diff(base, proposed)
+            course_diffs.append({"base": base, "proposed": proposed, "course_diff": course_diff})
+        html = templates.get_template("jinja_diff.html").render(
+            course_diffs=course_diffs,
+            curriculum_year=selected_curriculum_year(),
+            asset_root="/",
+        )
+    else:
+        courses = sorted(
+            (draft["proposed_json"] for draft in drafts),
+            key=lambda course: (int(course.get("semester") or 0), str(course.get("course_code") or ""), str(course.get("course_title") or "")),
+        )
+        html = templates.get_template("jinja_sample.html").render(courses=courses, semester="", curriculum_year=selected_curriculum_year(), asset_root="/", show_summaries=True)
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 

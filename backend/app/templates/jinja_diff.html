@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      @page { size: A4; margin: 14mm 12mm 18mm; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #000; font-family: Calibri, Arial, sans-serif; font-size: 10pt; line-height: 1.2; }
+      .course + .course { break-before: page; page-break-before: always; }
+      .letterhead { display: flex; align-items: center; justify-content: center; gap: 12pt; margin-bottom: 10pt; }
+      .seal { width: 41px; height: auto; }
+      .wordmark { width: 265px; height: auto; }
+      table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+      .meta { margin-bottom: -1pt; }
+      th, td { border: 1pt solid #000; padding: 4pt 5pt; vertical-align: top; overflow-wrap: anywhere; }
+      th { font-weight: 700; text-align: left; }
+      .center { text-align: center; }
+      .label { width: 18%; }
+      .hour { width: 7%; }
+      p { margin: 0 0 5pt; }
+      p:last-child { margin-bottom: 0; }
+      ul, ol { margin: 0; padding-left: 16pt; }
+      li { margin-bottom: 3pt; }
+      li:last-child { margin-bottom: 0; }
+      .unit-title, .hours { font-weight: 700; }
+      .unit { margin-bottom: 8pt; }
+      .unit:last-child { margin-bottom: 0; }
+      .hours { text-align: right; }
+      .resource-link { color: inherit; text-decoration: underline; }
+      .semester-title { margin: 0 0 8pt; text-align: center; font-size: 11pt; font-weight: 700; }
+      .diff-removed { background: #ffeef0; border-left: 3px solid #b91c1c; padding: 4pt 8pt; margin: 2pt 0; }
+      .diff-removed .diff-sign { color: #b91c1c; font-weight: 700; margin-right: 4pt; }
+      .diff-removed .diff-value { text-decoration: line-through; }
+      .diff-added { background: #f0fdf4; border-left: 3px solid #15803d; padding: 4pt 8pt; margin: 2pt 0; }
+      .diff-added .diff-sign { color: #15803d; font-weight: 700; margin-right: 4pt; }
+      .diff-unchanged { margin: 4pt 0; }
+      .diff-list-item { margin: 2pt 0; padding: 2pt 8pt; }
+      .diff-list-item.removed { background: #ffeef0; border-left: 3px solid #b91c1c; }
+      .diff-list-item.added { background: #f0fdf4; border-left: 3px solid #15803d; }
+      .diff-list-item.unchanged { background: transparent; border-left: 3px solid transparent; padding-left: 5pt; }
+      .diff-list-item .diff-sign { font-weight: 700; margin-right: 4pt; }
+      .diff-list-item.removed .diff-sign { color: #b91c1c; }
+      .diff-list-item.added .diff-sign { color: #15803d; }
+      .diff-list-item.removed .diff-value { text-decoration: line-through; }
+      .diff-unit { margin-bottom: 8pt; }
+      .diff-unit.removed { background: #ffeef0; padding: 8pt; border-left: 3px solid #b91c1c; }
+      .diff-unit.added { background: #f0fdf4; padding: 8pt; border-left: 3px solid #15803d; }
+      .diff-unit.changed { background: #fffbeb; padding: 8pt; border-left: 3px solid #b45309; }
+      .diff-unit.unchanged { margin-bottom: 8pt; }
+      .diff-unit-header { font-weight: 700; margin-bottom: 4pt; }
+      .diff-unit-changes { margin-left: 12pt; }
+      .diff-unit-change { margin: 2pt 0; padding: 2pt 8pt; }
+      .diff-unit-change .diff-sign { font-weight: 700; margin-right: 4pt; }
+      .diff-unit-change.removed { background: #ffeef0; color: #b91c1c; }
+      .diff-unit-change.added { background: #f0fdf4; color: #15803d; }
+      .diff-unit-change.changed { background: #fffbeb; color: #b45309; }
+      .footer-bar { position: fixed; left: 0; right: 0; bottom: -14mm; height: 9mm; background: #000; }
+    </style>
+  </head>
+  <body>
+    <div class="footer-bar"></div>
+
+    {% macro diff_inline(diff) %}
+      {% if diff %}
+        {% if diff.old != "" %}
+        <div class="diff-removed"><span class="diff-sign">&minus;</span><span class="diff-value">{{ diff.old }}</span></div>
+        {% endif %}
+        {% if diff.new != "" %}
+        <div class="diff-added"><span class="diff-sign">+</span><span class="diff-value">{{ diff.new }}</span></div>
+        {% endif %}
+      {% else %}
+        <div class="diff-unchanged"></div>
+      {% endif %}
+    {% endmacro %}
+
+    {% macro diff_cell(diff, proposed_value) %}
+      <td>
+        {% if diff %}
+          {% if diff.old != "" %}
+          <div class="diff-removed"><span class="diff-sign">&minus;</span><span class="diff-value">{{ diff.old }}</span></div>
+          {% endif %}
+          {% if diff.new != "" %}
+          <div class="diff-added"><span class="diff-sign">+</span><span class="diff-value">{{ diff.new }}</span></div>
+          {% endif %}
+        {% else %}
+          {{ proposed_value }}
+        {% endif %}
+      </td>
+    {% endmacro %}
+
+    {% macro render_list(course_diff, proposed_course, field_name, ordered=false) %}
+      {% set diff = course_diff[field_name] %}
+      {% if diff %}
+        {% if ordered %}<ol>{% else %}<ul>{% endif %}
+          {% for item in diff.unchanged %}
+            <li class="diff-list-item unchanged"><span class="diff-sign"> </span><span class="diff-value">{{ item }}</span></li>
+          {% endfor %}
+          {% for item in diff.removed %}
+            <li class="diff-list-item removed"><span class="diff-sign">&minus;</span><span class="diff-value">{{ item }}</span></li>
+          {% endfor %}
+          {% for item in diff.added %}
+            <li class="diff-list-item added"><span class="diff-sign">+</span><span class="diff-value">{{ item }}</span></li>
+          {% endfor %}
+        {% if ordered %}</ol>{% else %}</ul>{% endif %}
+      {% else %}
+        {% if ordered %}<ol>{% else %}<ul>{% endif %}
+          {% for item in proposed_course[field_name] %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        {% if ordered %}</ol>{% else %}</ul>{% endif %}
+      {% endif %}
+    {% endmacro %}
+
+    {% macro render_units(course_diff, proposed_course) %}
+      {% set units_diff = course_diff.units %}
+      {% if units_diff %}
+        {% for unit_entry in units_diff.units %}
+          {% if unit_entry.kind == "removed" %}
+            <div class="diff-unit removed">
+              <div class="diff-unit-header">&minus; {{ unit_entry.unit.title }} ({{ unit_entry.unit.hours }} Hours)</div>
+              <p>{{ unit_entry.unit.content }}</p>
+            </div>
+          {% elif unit_entry.kind == "added" %}
+            <div class="diff-unit added">
+              <div class="diff-unit-header">+ {{ unit_entry.unit.title }} ({{ unit_entry.unit.hours }} Hours)</div>
+              <p>{{ unit_entry.unit.content }}</p>
+            </div>
+          {% elif unit_entry.kind == "changed" %}
+            <div class="diff-unit changed">
+              <div class="diff-unit-header">~ {{ unit_entry.unit.title }} ({{ unit_entry.unit.hours }} Hours)</div>
+              <p>{{ unit_entry.unit.content }}</p>
+              <div class="diff-unit-changes">
+                {% for field, change in unit_entry.changes.items() %}
+                  <div class="diff-unit-change removed">&minus; {{ field }}: {{ change.old }}</div>
+                  <div class="diff-unit-change added">+ {{ field }}: {{ change.new }}</div>
+                {% endfor %}
+              </div>
+            </div>
+          {% else %}
+            <div class="diff-unit unchanged">
+              <div class="unit-title">{{ unit_entry.unit.title }}</div>
+              <p>{{ unit_entry.unit.content }}</p>
+              <p class="hours">{{ unit_entry.unit.hours }} Hours</p>
+            </div>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        {% for unit in proposed_course.units %}
+          <div class="unit">
+            <p class="unit-title">{{ unit.title }}</p>
+            <p>{{ unit.content }}</p>
+            <p class="hours">{{ unit.hours }} Hours</p>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endmacro %}
+
+    {% macro render_course(course_diff, proposed_course) %}
+    <article class="course">
+      <header class="letterhead">
+        <img class="seal" src="{{ asset_root | default('') }}images/image2.png" alt="PES University logo" />
+        <img class="wordmark" src="{{ asset_root | default('') }}images/image1.png" alt="PES University" />
+      </header>
+
+      <table class="meta">
+        <colgroup>
+          <col class="label" />
+          <col />
+          <col class="label" />
+          <col class="hour" />
+          <col class="hour" />
+          <col class="hour" />
+          <col class="hour" />
+          <col class="hour" />
+        </colgroup>
+        <tbody>
+          <tr>
+            <th>Course Code</th>
+            {{ diff_cell(course_diff.course_code, proposed_course.course_code | course_code_for_year(proposed_course.semester, curriculum_year)) }}
+            <th>Course Title</th>
+            <td colspan="5">{{ diff_inline(course_diff.course_title) }}</td>
+          </tr>
+          <tr>
+            <th rowspan="2">Program</th>
+            <td rowspan="2">{{ proposed_course.program }}</td>
+            <th rowspan="2">Hours per week / Credit Assigned</th>
+            <th class="center">L</th><th class="center">T</th><th class="center">P</th><th class="center">S</th><th class="center">C</th>
+          </tr>
+          <tr>
+            <td class="center">{{ proposed_course.lecture_hours }}</td>
+            <td class="center">{{ proposed_course.tutorial_hours }}</td>
+            <td class="center">{{ proposed_course.practical_hours }}</td>
+            <td class="center">{{ proposed_course.self_study }}</td>
+            <td class="center">{{ proposed_course.credits }}</td>
+          </tr>
+          <tr>
+            <th>Semester</th>
+            <td>{{ proposed_course.semester }}</td>
+            <th>Type of Course</th>
+            <td colspan="5">{{ proposed_course.course_type }}</td>
+          </tr>
+          <tr>
+            <th>AI Tools / Tools / Languages</th>
+            {{ diff_cell(course_diff.tools_languages, proposed_course.tools_languages) }}
+            <th>Desirable Knowledge</th>
+            <td colspan="5">{{ diff_inline(course_diff.desirable_knowledge) }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table>
+        <colgroup>
+          <col class="label" />
+          <col />
+        </colgroup>
+        <tbody>
+          <tr>
+            <th>Prelude</th>
+            <td>{{ diff_inline(course_diff.prelude) }}</td>
+          </tr>
+          <tr>
+            <th>Course Objectives:</th>
+            <td>{{ render_list(course_diff, proposed_course, "objectives") }}</td>
+          </tr>
+          <tr>
+            <th>Course Contents</th>
+            <td>{{ render_units(course_diff, proposed_course) }}</td>
+          </tr>
+          {% if proposed_course.lab_experiments %}
+          <tr>
+            <th>Laboratory</th>
+            <td>{{ render_list(course_diff, proposed_course, "lab_experiments", ordered=true) }}</td>
+          </tr>
+          {% endif %}
+          <tr>
+            <th>Text Book(s):</th>
+            <td>{{ render_list(course_diff, proposed_course, "text_books", ordered=true) }}</td>
+          </tr>
+          {% if proposed_course.reference_books %}
+          <tr>
+            <th>Reference Book(s):</th>
+            <td>{{ render_list(course_diff, proposed_course, "reference_books", ordered=true) }}</td>
+          </tr>
+          {% endif %}
+          {% if proposed_course.course_outcomes %}
+          <tr>
+            <th>Course Outcome</th>
+            <td>{{ render_list(course_diff, proposed_course, "course_outcomes") }}</td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </article>
+    {% endmacro %}
+
+    {% if course_diff is defined and course_diff %}
+      {{ render_course(course_diff, proposed) }}
+    {% elif course_diffs is defined and course_diffs %}
+      {% for cd in course_diffs %}
+        {{ render_course(cd.course_diff, cd.proposed) }}
+      {% endfor %}
+    {% else %}
+      <div style="padding: 20pt; text-align: center; font-weight: 700;">No diff data available</div>
+    {% endif %}
+  </body>
+</html>
