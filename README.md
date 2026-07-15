@@ -7,86 +7,89 @@ app_port: 7860
 pinned: false
 ---
 
-# Curriculum Automation
+# PESU Curriculum Automation
 
-## Doc link
+![Python](https://img.shields.io/badge/python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/fastapi-0.138-009688?style=flat-square&logo=fastapi&logoColor=white)
+![Supabase](https://img.shields.io/badge/supabase-postgres-3FCF8E?style=flat-square&logo=supabase&logoColor=white)
+![OpenRouter](https://img.shields.io/badge/openrouter--llm-6366F1?style=flat-square&logo=openai&logoColor=white)
+![WeasyPrint](https://img.shields.io/badge/weasyprint-pdf-E64B1A?style=flat-square&logo=markdown&logoColor=white)
+![CI](https://img.shields.io/badge/CI-passing-brightgreen?style=flat-square&logo=githubactions&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-87-green?style=flat-square&logo=pytest&logoColor=white)
+![Sentry](https://img.shields.io/badge/sentry--sdk-2.63-362D59?style=flat-square&logo=sentry&logoColor=white)
+![HF Space](https://img.shields.io/badge/deploy-HF%20Spaces-yellow?style=flat-square&logo=huggingface&logoColor=white)
+![Vercel](https://img.shields.io/badge/frontend-Vercel-black?style=flat-square&logo=vercel&logoColor=white)
 
-https://lonelyguy-se1.github.io/PESU-Curriculum-Automation/
+Automate PES University's B.Tech curriculum management: faculty submit raw course content, the system refines it via AI, and admins review, edit, and export the full curriculum as official A4 PDFs.
 
-## Phase 1 Flow Proposal
+## Live Demo
 
-```mermaid id="phase1-flow"
-flowchart TD
+**[pesucurriculum.vercel.app](https://pesucurriculum.vercel.app/)** (preferred, works across browsers)
 
-    A[Professor opens form] --> B[Enter course details]
-    B --> C[Submit content, semester, credits, department, books]
+Backup: [HF Space](https://huggingface.co/spaces/Lonelyguyse1/Curriculum-Backend) (may have compatibility issues on some browsers)
 
-    C --> D[FastAPI receives submission]
-    D --> E[Check mandatory fields]
+## Architecture
 
-    E -->|Invalid| F[Reject submission]
-    F --> G[Email professor with reasons]
-    G --> H[Professor opens edit link]
-    H --> I[Cached form shows old data and flagged issues]
-    I --> C
+```mermaid
+flowchart LR
+    F[Faculty] -->|submits raw content| Form[Form]
+    Form -->|POST /api/submissions| API[FastAPI]
+    API -->|refine| LLM[OpenRouter LLM]
+    API -->|store| DB[(Supabase Postgres)]
 
-    E -->|Valid| J[Generate derived fields]
-    J --> J1[Course code]
-    J --> J2[Credit pattern]
-    J --> J3[Course type]
-    J --> J4[Template data]
-
-    J1 --> K[AI refinement]
-    J2 --> K
-    J3 --> K
-    J4 --> K
-
-    K --> K1[Refine content]
-    K --> K2[Generate prelude]
-    K --> K3[Generate objectives]
-    K --> K4[Generate outcomes]
-    K --> K5[Recommend tools]
-
-    K1 --> L[Rubric check]
-    K2 --> L
-    K3 --> L
-    K4 --> L
-    K5 --> L
-
-    L -->|Low score| M[Reject draft]
-    M --> N[Store flagged issues]
-    N --> G
-
-    L -->|Pass| O[Create draft record]
-    O --> P[Render preview with Jinja2]
-
-    P --> Q[Faculty or admin review]
-
-    Q -->|Rejected| R[Store rejection reasons]
-    R --> G
-
-    Q -->|Accepted| S[Update remote database]
-    S --> T[Update curriculum template fields]
-    T --> U[Keep incomplete template pending]
-
-    U --> V{All course submissions received?}
-
-    V -->|No| W[Wait for remaining professors]
-    W --> U
-
-    V -->|Yes| X[Compile final curriculum document]
-    X --> Y[Final review]
-    Y --> Z[Export final PDF or DOCX]
+    Admin[Admin] --> Editor[Live Editor]
+    Editor -->|chat + tools| API
+    Editor -->|review drafts| API
+    API -->|render| Jinja2[Jinja2 Templates]
+    Jinja2 -->|PDF| WeasyPrint[WeasyPrint]
+    WeasyPrint --> PDF[Curriculum PDF]
 ```
 
-## Phase 1 Summary
+| Layer | Stack |
+|---|---|
+| Backend | Python 3.12, FastAPI, Uvicorn |
+| Frontend | Vanilla HTML/CSS/JS (no build step) |
+| Database | Supabase (PostgreSQL) |
+| AI/LLM | OpenRouter (streaming + tool calling) |
+| PDF | Jinja2 + WeasyPrint (A4 layout) |
+| Auth | Supabase Auth (JWT) |
+| Deploy | Docker on HF Spaces, Vercel frontend proxy |
+| Monitoring | Sentry (optional, error tracking) |
 
-Professors submit only the required academic material.
+## Features
 
-The system generates derived fields, refines the content, checks it using a rubric, and stores accepted drafts in a remote database.
+- **Course submission** with auto-parsed course codes (semester, department, credits extracted automatically)
+- **AI refinement** that preserves all syllabus topics, only cleans and structures content
+- **Full curriculum PDFs** in PES University's official A4 format with letterhead
+- **Live editor** with AI assistant (SSE streaming, 27 tools, draft review)
+- **Reviewable drafts** (agent never auto-applies changes)
+- **Dynamic specialization management** (DB-driven tracks, not hardcoded)
+- **Version snapshots** with restore and revision history
+- **Course visibility toggle** and credit-based sorting
+- **Authentication** via Supabase Auth
 
-Rejected submissions are returned by email with reasons. The professor gets an edit link where previous data is already cached and flagged issues are shown.
+## Quick Start
 
-Accepted submissions do not immediately become the final document. They update the shared curriculum template and remain pending until all required course submissions are received.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cd backend && fastapi dev app/main.py
+```
 
-The final curriculum document is compiled only after every required course entry is complete.
+Server at `http://127.0.0.1:8000`. API under `/api`. Frontend served from `frontend/`.
+
+## Documentation
+
+Full documentation is in [docs/index.md](docs/index.md):
+
+- [API Reference](docs/index.md#api-reference) -- all 35 endpoints
+- [Database Schema](docs/schema.sql) -- 12 tables
+- [Local Development](docs/index.md#local-development) -- setup and run
+- [Deployment](docs/index.md#deployment) -- Docker, Vercel, HF Spaces
+- [Environment Variables](docs/index.md#environment-variables) -- required and optional
+- [How It Works](docs/index.md#how-it-works) -- submission pipeline, refinement, preview, specializations, agent system, versioning
+
+## Project Structure
+
+See [docs/index.md#project-structure](docs/index.md#project-structure) for the full breakdown.
