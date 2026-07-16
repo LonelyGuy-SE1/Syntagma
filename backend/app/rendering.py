@@ -2,11 +2,28 @@ import re
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2.ext import do
 from markupsafe import Markup, escape
 
 APP_DIR = Path(__file__).resolve().parent
-FRONTEND_DIR = APP_DIR.parent.parent / "frontend"
-templates = Environment(loader=FileSystemLoader(APP_DIR / "templates"), autoescape=select_autoescape(["html", "xml"]))
+
+
+def _find_frontend_dir() -> Path:
+    app_root = APP_DIR.parent
+    candidates = (
+        app_root / "frontend",
+        app_root.parent / "frontend",
+        app_root.parent.parent / "frontend",
+        Path("/frontend"),
+    )
+    result = next((p for p in candidates if p.exists()), None)
+    if result is None:
+        raise RuntimeError("Frontend directory not found; cannot resolve image assets for PDF rendering")
+    return result
+
+
+FRONTEND_DIR = _find_frontend_dir()
+templates = Environment(loader=FileSystemLoader(APP_DIR / "templates"), autoescape=select_autoescape(["html", "xml"]), extensions=[do])
 URL_RE = re.compile(r"https?://[^\s<>()]+")
 YEAR_RE = re.compile(r"\d{4}")
 
@@ -55,3 +72,15 @@ def course_code_for_year(value: str, semester, curriculum_year: str) -> str:
 templates.filters["linkify"] = linkify
 templates.filters["course_code_for_year"] = course_code_for_year
 templates.globals["batch_label"] = batch_label
+
+SEMESTER_NAMES = {
+    "1": "I",
+    "2": "II",
+    "3": "III",
+    "4": "IV",
+    "5": "V",
+    "6": "VI",
+    "7": "VII",
+    "8": "VIII",
+}
+templates.globals["SEMESTER_NAMES"] = SEMESTER_NAMES

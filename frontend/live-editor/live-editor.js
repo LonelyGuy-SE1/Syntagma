@@ -1,3 +1,25 @@
+if (typeof marked !== "undefined") {
+  marked.use({ gfm: true, breaks: false });
+}
+
+function preprocessUrls(text) {
+  return text.replace(
+    /(?<!\()(https?:\/\/[^\s<>"')\]]+)/g,
+    (url) => {
+      const clean = url.replace(/[.,;:!?]+$/, "");
+      const trailing = url.slice(clean.length);
+      return `[${clean}](${clean})${trailing}`;
+    }
+  );
+}
+
+function yearParam(base) {
+  const y = localStorage.getItem("curriculumYear") || "";
+  if (!y) return base;
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}curriculum_year=${encodeURIComponent(y)}`;
+}
+
 const semester = document.getElementById("semester");
 const course = document.getElementById("course");
 const viewMode = document.getElementById("view-mode");
@@ -21,6 +43,9 @@ const renameChat = document.getElementById("rename-chat");
 const deleteChat = document.getElementById("delete-chat");
 const newChat = document.getElementById("new-chat");
 const chatLog = document.getElementById("chat-log");
+const chatStatus = document.getElementById("chat-status");
+const chatStatusText = document.getElementById("chat-status-text");
+const chatSpinner = document.getElementById("chat-spinner");
 const message = document.getElementById("message");
 const attach = document.getElementById("attach");
 const files = document.getElementById("files");
@@ -37,16 +62,70 @@ const reviewSummary = document.getElementById("review-summary");
 const diffView = document.getElementById("diff-view");
 const previewDraft = document.getElementById("preview-draft");
 const applyDraft = document.getElementById("apply-draft");
+const togglePane = document.getElementById("toggle-pane");
+const logoutBtn = document.getElementById("logout-btn");
+const previewOverlay = document.getElementById("preview-overlay");
+const previewFilename = document.getElementById("preview-filename");
+const previewBody = document.getElementById("preview-body");
+const previewClose = document.getElementById("preview-close");
+const contextBadge = document.getElementById("context-badge");
+const contextUsage = document.getElementById("context-usage");
+
+fetch("/api/agent/context-length").then((r) => r.json()).then((d) => {
+  const tokens = d.context_length || 0;
+  contextBadge.textContent = tokens >= 1000000 ? `${tokens / 1000000}M` : tokens >= 1000 ? `${Math.round(tokens / 1000)}K` : `${tokens}`;
+  contextBadge.title = `${d.model} - ${tokens.toLocaleString()} tokens`;
+}).catch(() => {});
+
+const TOOL_LABELS = {
+  get_course_codes: "Looking up courses",
+  get_current_course_json: "Reading course data",
+  get_course_syllabus: "Reading syllabus",
+  get_course_textbooks: "Reading textbooks",
+  get_course_deterministic: "Reading course properties",
+  get_course_lab: "Reading lab details",
+  get_course_fields: "Reading course fields",
+  batch_read_courses: "Reading courses",
+  get_curriculum_json: "Loading curriculum",
+  get_curriculum_stats: "Computing statistics",
+  create_course_draft: "Creating draft",
+  create_document_draft: "Creating document draft",
+  create_report: "Generating report",
+  create_spreadsheet: "Generating spreadsheet",
+  diff_course_json: "Comparing courses",
+  diff_versions: "Comparing versions",
+  get_version: "Loading snapshot",
+  update_course_field: "Updating course",
+  update_deterministic_fields: "Updating course",
+  get_attachment_text: "Reading attachment",
+  list_specializations: "Loading specializations",
+  define_specialization: "Creating specialization",
+  assign_elective_to_tracks: "Categorizing elective",
+  get_course_assignments: "Reading elective assignments",
+  fetch_url: "Fetching URL",
+  web_search: "Searching the web",
+  signal_done: "Finalizing",
+};
+
 let activeCourseId = "";
 let activeDraftId = "";
+let activeDocumentDraftId = "";
 let activeSessionId = "";
 let queuedFiles = [];
 let versionMode = false;
 const initialParams = new URLSearchParams(location.search);
 
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", () => {
+    localStorage.removeItem("sb-supgrlinqgxvifijgbns-auth-token");
+    location.href = "/auth/";
+  });
+}
+
 function setStatus(text, kind = "") {
   statusText.textContent = text || "";
   statusText.className = kind;
+  statusText.hidden = !text;
 }
 
 function showError(error, fallback = "Action failed.") {
@@ -162,9 +241,9 @@ function chatScopeQuery() {
 }
 
 function sessionTitle(item) {
-  const title = item.title || `Thread ${item.id}`;
-  const created = item.created_at ? new Date(item.created_at).toLocaleString() : "";
-  return created ? `${title} - ${created}` : title;
+  if (item.title) return item.title;
+  const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : "";
+  return date ? `Thread ${item.id} - ${date}` : `Thread ${item.id}`;
 }
 
 async function refreshChatSessions() {
@@ -175,7 +254,7 @@ async function refreshChatSessions() {
   chatSession.replaceChildren(...sessions.map((item) => option(String(item.id), sessionTitle(item))));
   if (activeSessionId) chatSession.value = activeSessionId;
   const selected = sessions.find((item) => String(item.id) === chatSession.value);
-  chatTitle.value = selected?.title || "";
+  if (chatTitle.hidden) chatTitle.value = selected?.title || "";
 }
 
 async function createChatSession() {
@@ -194,7 +273,10 @@ async function createChatSession() {
 }
 
 async function renameActiveChat() {
-  if (!activeSessionId || !chatTitle.value.trim()) return;
+  if (!activeSessionId || !chatTitle.value.trim()) {
+    exitRenameMode();
+    return;
+  }
   const response = await fetch(`/api/chat/sessions/${activeSessionId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -203,6 +285,23 @@ async function renameActiveChat() {
   if (!response.ok) throw new Error(await errorMessage(response, "Rename failed"));
   await refreshChatSessions();
   setStatus("Thread renamed.", "ready");
+  exitRenameMode();
+}
+
+function enterRenameMode() {
+  if (!activeSessionId) return;
+  const currentTitle = chatSession.options[chatSession.selectedIndex]?.text || "";
+  chatTitle.value = currentTitle;
+  chatTitle.hidden = false;
+  document.querySelector(".thread-selector").hidden = true;
+  chatTitle.focus();
+  chatTitle.select();
+}
+
+function exitRenameMode() {
+  chatTitle.hidden = true;
+  const selector = document.querySelector(".thread-selector");
+  if (selector) selector.hidden = false;
 }
 
 async function deleteActiveChat() {
@@ -266,7 +365,29 @@ function attachmentNode(file, index, removable) {
     visual.alt = "";
   } else {
     visual.className = "attachment-icon";
-    visual.textContent = "FILE";
+    const mime = (file.type || "").toLowerCase();
+    let icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+    let label = "FILE";
+    if (mime.includes("pdf")) {
+      icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h2"/><path d="M9 11h6"/><path d="M9 19h6"/></svg>`;
+      label = "PDF";
+    } else if (mime.includes("spreadsheet") || mime.includes("excel") || mime.endsWith(".xlsx") || mime.endsWith(".csv")) {
+      icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>`;
+      label = "XLS";
+    } else if (mime.includes("word") || mime.includes("document") || mime.endsWith(".doc") || mime.endsWith(".docx")) {
+      icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>`;
+      label = "DOC";
+    } else if (mime.includes("markdown") || (file.name || "").endsWith(".md")) {
+      icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M7 15V9l2.5 3L12 9v6"/><path d="M14 15l2-3 2 3"/></svg>`;
+      label = "MD";
+    } else if (mime.includes("text") || mime.endsWith(".txt")) {
+      icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/></svg>`;
+      label = "TXT";
+    } else if (mime.includes("image")) {
+      icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+      label = "IMG";
+    }
+    visual.innerHTML = `<span class="attachment-icon-label">${label}</span>${icon}`;
   }
   const text = document.createElement("div");
   const name = document.createElement("div");
@@ -280,6 +401,8 @@ function attachmentNode(file, index, removable) {
   meta.textContent = `${file.type || "file"} - ${formatSize(file.size || 0)}${status}${extracted}`;
   text.append(name, meta);
   item.append(visual, text);
+  const actions = document.createElement("div");
+  actions.className = "attachment-actions";
   if (removable) {
     const remove = document.createElement("button");
     remove.className = "attachment-remove";
@@ -289,16 +412,117 @@ function attachmentNode(file, index, removable) {
       queuedFiles.splice(index, 1);
       renderDraftAttachments();
     });
-    item.appendChild(remove);
-  } else {
-    item.appendChild(document.createElement("span"));
+    actions.appendChild(remove);
+  } else if (file.id) {
+    const preview = document.createElement("button");
+    preview.className = "attachment-preview";
+    preview.type = "button";
+    preview.textContent = "Preview";
+    preview.addEventListener("click", () => openPreview(file));
+    actions.appendChild(preview);
+    const dl = document.createElement("a");
+    dl.className = "attachment-download";
+    dl.href = `/api/chat/sessions/${activeSessionId}/attachments/${file.id}/download`;
+    dl.download = file.name || "download";
+    dl.title = "Download";
+    dl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+    actions.appendChild(dl);
   }
+  item.appendChild(actions);
   return item;
 }
 
 function renderDraftAttachments() {
   draftAttachments.replaceChildren(...queuedFiles.map((file, index) => attachmentNode(file, index, true)));
 }
+
+async function openPreview(file) {
+  if (!file.id || !activeSessionId) return;
+  previewFilename.textContent = file.name || "Preview";
+  previewBody.innerHTML = '<div class="preview-loading">Loading preview...</div>';
+  previewOverlay.hidden = false;
+  const mime = (file.type || "").toLowerCase();
+  const name = (file.name || "").toLowerCase();
+  try {
+    const url = `/api/chat/sessions/${activeSessionId}/attachments/${file.id}/preview`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Preview failed");
+    if (mime === "application/pdf" || name.endsWith(".pdf")) {
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      previewBody.innerHTML = `<iframe src="${blobUrl}" class="preview-iframe"></iframe>`;
+    } else if (mime.includes("markdown") || name.endsWith(".md")) {
+      const text = await response.text();
+      const html = typeof DOMPurify !== "undefined" ? DOMPurify.sanitize(marked.parse(preprocessUrls(text))) : marked.parse(preprocessUrls(text));
+      previewBody.innerHTML = `<div class="preview-rendered">${html}</div>`;
+    } else if (mime.includes("spreadsheet") || mime.includes("excel") || name.endsWith(".xlsx") || name.endsWith(".csv")) {
+      const text = await response.text();
+      const table = csvToTable(text, name.endsWith(".csv"));
+      previewBody.innerHTML = table;
+    } else if (mime.includes("word") || name.endsWith(".doc") || name.endsWith(".docx")) {
+      const text = await response.text();
+      previewBody.innerHTML = `<pre class="preview-text">${escapeHtml(text)}</pre>`;
+    } else {
+      const text = await response.text();
+      previewBody.innerHTML = `<pre class="preview-text">${escapeHtml(text)}</pre>`;
+    }
+  } catch (error) {
+    previewBody.innerHTML = `<div class="preview-error">Could not load preview.</div>`;
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function csvToTable(text, isCsv) {
+  const lines = text.split("\n").filter((l) => l.trim());
+  if (!lines.length) return `<pre class="preview-text">${escapeHtml(text)}</pre>`;
+  const rows = lines.map((line) => {
+    const cells = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+        else if (ch === '"') inQuotes = false;
+        else current += ch;
+      } else {
+        if (ch === '"') inQuotes = true;
+        else if (ch === "\t" || (isCsv && ch === ",")) { cells.push(current); current = ""; }
+        else current += ch;
+      }
+    }
+    cells.push(current);
+    return cells;
+  });
+  const header = rows.shift();
+  if (!header) return `<pre class="preview-text">${escapeHtml(text)}</pre>`;
+  let html = '<table class="preview-table"><thead><tr>';
+  header.forEach((h) => { html += `<th>${escapeHtml(h)}</th>`; });
+  html += "</tr></thead><tbody>";
+  rows.forEach((row) => {
+    html += "<tr>";
+    row.forEach((cell) => { html += `<td>${escapeHtml(cell)}</td>`; });
+    html += "</tr>";
+  });
+  html += "</tbody></table>";
+  return html;
+}
+
+function closePreview() {
+  previewOverlay.hidden = true;
+  previewBody.innerHTML = "";
+  const iframe = previewBody.querySelector("iframe");
+  if (iframe && iframe.src.startsWith("blob:")) URL.revokeObjectURL(iframe.src);
+}
+
+previewClose.addEventListener("click", closePreview);
+previewOverlay.addEventListener("click", (e) => { if (e.target === previewOverlay) closePreview(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !previewOverlay.hidden) closePreview(); });
 
 function messageNode(item) {
   const bubble = document.createElement("div");
@@ -321,36 +545,76 @@ function messageNode(item) {
   return { bubble, content };
 }
 
-function renderMessageContent(target, value) {
-  target.replaceChildren();
-  const text = String(value || "");
-  const pattern = /(\*\*[^*]+\*\*|`[^`]+`|https?:\/\/[^\s<>()]+)/g;
+function renderInline(parent, text) {
+  if (typeof marked !== "undefined") {
+    parent.innerHTML = typeof DOMPurify !== "undefined" ? DOMPurify.sanitize(marked.parse(preprocessUrls(text))) : marked.parse(preprocessUrls(text));
+    return;
+  }
+  const pattern = /(\*\*[^*]+\*\*|`[^`]+`|https?:\/\/[^\s<>"']+)/g;
   let last = 0;
   for (const match of text.matchAll(pattern)) {
-    if (match.index > last) target.appendChild(document.createTextNode(text.slice(last, match.index)));
+    if (match.index > last) parent.appendChild(document.createTextNode(text.slice(last, match.index)));
     const token = match[0];
     if (token.startsWith("**")) {
       const strong = document.createElement("strong");
       strong.textContent = token.slice(2, -2);
-      target.appendChild(strong);
+      parent.appendChild(strong);
     } else if (token.startsWith("`")) {
       const code = document.createElement("code");
       code.textContent = token.slice(1, -1);
-      target.appendChild(code);
+      parent.appendChild(code);
     } else {
       const link = document.createElement("a");
-      const url = token.replace(/[.,;:)]}]+$/, "");
+      const url = token.replace(/[.,;:)}!?]+$/, "").replace(/[<>]+/g, "");
       const trailing = token.slice(url.length);
       link.href = url;
       link.target = "_blank";
       link.rel = "noreferrer";
       link.textContent = url;
-      target.appendChild(link);
-      if (trailing) target.appendChild(document.createTextNode(trailing));
+      parent.appendChild(link);
+      if (trailing) parent.appendChild(document.createTextNode(trailing));
     }
     last = match.index + token.length;
   }
-  if (last < text.length) target.appendChild(document.createTextNode(text.slice(last)));
+  if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
+}
+
+function renderMessageContent(target, value) {
+  target.replaceChildren();
+  const text = String(value || "");
+  if (typeof marked !== "undefined") {
+    target.innerHTML = typeof DOMPurify !== "undefined" ? DOMPurify.sanitize(marked.parse(preprocessUrls(text))) : marked.parse(preprocessUrls(text));
+    return;
+  }
+  const lines = text.split("\n");
+  let inList = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed) {
+      inList = false;
+      continue;
+    }
+    if (/^---+$/.test(trimmed)) {
+      if (inList) inList = false;
+      target.appendChild(document.createElement("hr"));
+      continue;
+    }
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      if (!inList) {
+        inList = true;
+        target.appendChild(document.createElement("ul"));
+      }
+      const li = document.createElement("li");
+      renderInline(li, trimmed.slice(2));
+      target.lastElementChild.appendChild(li);
+      continue;
+    }
+    if (inList) inList = false;
+    const block = document.createElement("div");
+    renderInline(block, line);
+    target.appendChild(block);
+  }
 }
 
 function appendMessage(item) {
@@ -388,7 +652,13 @@ async function readEventStream(response, onEvent) {
     while (index >= 0) {
       const raw = buffer.slice(0, index).trim();
       buffer = buffer.slice(index + 2);
-      if (raw) onEvent(parseEvent(raw));
+      if (raw) {
+        try {
+          onEvent(parseEvent(raw));
+        } catch (e) {
+          console.warn("SSE parse error:", e);
+        }
+      }
       index = buffer.indexOf("\n\n");
     }
   }
@@ -396,6 +666,7 @@ async function readEventStream(response, onEvent) {
 
 function resetReview() {
   activeDraftId = "";
+  activeDocumentDraftId = "";
   reviewSummary.replaceChildren(document.createTextNode("No draft loaded."));
   renderDiff("");
   previewDraft.disabled = true;
@@ -473,8 +744,7 @@ function renderDraftReview(draftRow) {
 
 function showCourseDraft(draftRow) {
   renderDraftReview(draftRow);
-  viewer.src = `/api/agent/drafts/${draftRow.id}/preview`;
-  preview.href = `/api/agent/drafts/${draftRow.id}/preview`;
+  viewer.src = yearParam(`/api/agent/drafts/${draftRow.id}/preview?diff=1`);
   setStatus("Draft ready for review.", "ready");
   refreshDraftSelectors().catch(showError);
   setTab("review");
@@ -498,6 +768,7 @@ async function loadDocumentDraftById(id) {
   const body = await response.json();
   const summary = body.document_draft.diff_summary || {};
   activeDraftId = "";
+  activeDocumentDraftId = String(id);
   reviewSummary.replaceChildren(
     summaryLine("Document draft", id),
     summaryLine("Status", body.document_draft.status || ""),
@@ -511,10 +782,9 @@ async function loadDocumentDraftById(id) {
       .map((item) => `Course draft ${item.id}\n${item.diff_summary?.unified_diff || ""}`)
       .join("\n\n"),
   );
-  previewDraft.disabled = true;
-  applyDraft.disabled = true;
-  viewer.src = `/api/agent/document-drafts/${id}/preview`;
-  preview.href = `/api/agent/document-drafts/${id}/preview`;
+  previewDraft.disabled = false;
+  applyDraft.disabled = body.document_draft.status !== "proposed" || Boolean(summary.courses_with_protected_changes);
+  viewer.src = yearParam(`/api/agent/document-drafts/${id}/preview?diff=1`);
   await refreshDraftSelectors();
   documentDraftSelect.value = String(id);
   setTab("review");
@@ -539,11 +809,11 @@ async function refreshDraftSelectors() {
   ]);
   if (courseResponse.ok) {
     const body = await courseResponse.json();
-    courseDraftSelect.replaceChildren(...(body.drafts || []).map((item) => option(String(item.id), courseDraftLabel(item))));
+    courseDraftSelect.replaceChildren(...(body.drafts || []).filter((item) => item.status !== "applied").map((item) => option(String(item.id), courseDraftLabel(item))));
   }
   if (documentResponse.ok) {
     const body = await documentResponse.json();
-    documentDraftSelect.replaceChildren(...(body.document_drafts || []).map((item) => option(String(item.id), documentDraftLabel(item))));
+    documentDraftSelect.replaceChildren(...(body.document_drafts || []).filter((item) => item.status !== "applied").map((item) => option(String(item.id), documentDraftLabel(item))));
   }
   if (activeDraftId) courseDraftSelect.value = activeDraftId;
 }
@@ -607,8 +877,7 @@ async function loadCourse(id) {
   if (!response.ok) throw new Error("Unable to load course");
   const row = await response.json();
   editor.value = JSON.stringify(row.fields || {}, null, 2);
-  viewer.src = `/api/preview/course/${id}`;
-  preview.href = `/api/preview/course/${id}`;
+  viewer.src = yearParam(`/api/preview/course/${id}`);
   const title = row.fields?.course_title || `Course ${id}`;
   setStatus(title);
   const selected = course.querySelector(`option[value="${id}"]`);
@@ -631,8 +900,7 @@ async function loadVersionCourse(versionId, refinedId) {
   if (!response.ok) throw new Error("Unable to load version course");
   const body = await response.json();
   editor.value = JSON.stringify(body.fields || {}, null, 2);
-  viewer.src = `/api/versions/${versionId}/courses/${refinedId}/preview`;
-  preview.href = viewer.src;
+  viewer.src = yearParam(`/api/versions/${versionId}/courses/${refinedId}/preview`);
   setStatus(`${body.version.name}: ${body.fields?.course_title || `Course ${refinedId}`}`);
   queuedFiles = [];
   renderDraftAttachments();
@@ -644,14 +912,15 @@ async function loadDocumentPreview() {
   activeCourseId = "";
   activeDraftId = "";
   versionMode = false;
+  viewMode.value = "document";
   save.disabled = true;
   course.disabled = true;
   semester.disabled = true;
   editor.value = "";
   resetReview();
+  chatStatusText.textContent = "";
   loading.classList.add("active");
-  viewer.src = "/api/preview/pdf";
-  preview.href = "/api/preview/pdf";
+  viewer.src = yearParam("/api/preview/pdf");
   setStatus("Full Document");
   await ensureChatSession();
   await renderMessages();
@@ -664,7 +933,6 @@ async function loadSemester(sem) {
   course.replaceChildren();
   editor.value = "";
   viewer.removeAttribute("src");
-  preview.removeAttribute("href");
   loading.classList.add("active");
   setStatus("Loading...");
 
@@ -682,7 +950,18 @@ async function loadSemester(sem) {
 chatTab.addEventListener("click", () => setTab("chat"));
 fieldsTab.addEventListener("click", () => setTab("fields"));
 reviewTab.addEventListener("click", () => setTab("review"));
+if (togglePane) {
+  togglePane.addEventListener("click", () => {
+    const workspace = document.querySelector(".workspace");
+    const focused = workspace.classList.toggle("chat-focus");
+    togglePane.title = focused ? "Collapse chat / expand preview" : "Expand chat / collapse preview";
+    togglePane.classList.toggle("active", focused);
+  });
+}
 viewer.addEventListener("load", () => loading.classList.remove("active"));
+preview.addEventListener("click", () => {
+  if (viewer.src && viewer.src !== "about:blank") viewer.src = viewer.src;
+});
 semester.addEventListener("change", () => loadSemester(semester.value).catch(showError));
 course.addEventListener("change", () => loadCourse(course.value).catch(showError));
 viewMode.addEventListener("change", async () => {
@@ -700,6 +979,12 @@ viewMode.addEventListener("change", async () => {
 });
 attach.addEventListener("click", () => files.click());
 files.addEventListener("change", () => queueFiles(files.files).catch(showError));
+message.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    send.click();
+  }
+});
 saveVersion.addEventListener("click", () => saveCurrentVersion().catch((error) => {
   showError(error, "Version save failed.");
 }));
@@ -714,7 +999,25 @@ chatSession.addEventListener("change", async () => {
   await renderMessages();
 });
 
-renameChat.addEventListener("click", () => renameActiveChat().catch(showError));
+renameChat.addEventListener("click", () => enterRenameMode());
+chatTitle.addEventListener("keydown", async (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    try {
+      await renameActiveChat();
+    } catch (error) {
+      showError(error);
+    }
+  }
+  if (e.key === "Escape") {
+    exitRenameMode();
+  }
+});
+chatTitle.addEventListener("blur", () => {
+  setTimeout(() => {
+    if (!chatTitle.hidden) exitRenameMode();
+  }, 150);
+});
 deleteChat.addEventListener("click", () => deleteActiveChat().catch(showError));
 
 newChat.addEventListener("click", async () => {
@@ -729,6 +1032,8 @@ send.addEventListener("click", async () => {
   const content = message.value.trim();
   if (!content && !queuedFiles.length) return;
   send.disabled = true;
+  chatStatusText.textContent = "Analyzing...";
+  chatSpinner.classList.add("active");
   let assistant = null;
   try {
     await ensureChatSession();
@@ -754,28 +1059,62 @@ send.addEventListener("click", async () => {
 
     let answer = "";
     await readEventStream(response, ({ event, data }) => {
-      if (event === "status") setStatus(data.message || "");
+      if (event === "status") {
+        chatStatusText.textContent = data.message || "";
+        chatSpinner.classList.add("active");
+      }
+      if (event === "context_usage") {
+        const used = data.prompt_tokens || 0;
+        const max = data.context_length || 0;
+        const pct = max ? Math.round((used / max) * 100) : 0;
+        const fmt = (n) => n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : `${Math.round(n / 1000)}K`;
+        contextUsage.textContent = `${fmt(used)} / ${fmt(max)} (${pct}%)`;
+      }
       if (event === "token") {
         if (!assistant) assistant = appendMessage({ role: "assistant", content: "", created_at: new Date().toISOString() });
         answer += data.text || "";
         renderMessageContent(assistant.content, answer);
         chatLog.scrollTop = chatLog.scrollHeight;
       }
+      if (event === "tool_call") {
+        const label = TOOL_LABELS[data.name] || data.name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        chatStatusText.textContent = `${label}...`;
+        const toolMsg = `\u2699 ${data.name}(${JSON.stringify(data.arguments)})`;
+        const node = appendMessage({ role: "tool", content: toolMsg, created_at: new Date().toISOString() });
+        node.bubble.classList.add("tool-call");
+      }
+      if (event === "tool_result") {
+        const status = data.status === "ok" ? "✓" : "✗";
+        const toolMsg = `${status} ${data.name} completed`;
+        const node = appendMessage({ role: "tool", content: toolMsg, created_at: new Date().toISOString() });
+        node.bubble.classList.add("tool-result");
+      }
       if (event === "draft" && data.draft) {
         if (!assistant) assistant = appendMessage({ role: "assistant", content: "", created_at: new Date().toISOString() });
-        if (!answer) renderMessageContent(assistant.content, "Draft ready for review.");
+        if (!answer) { answer = "Draft ready for review."; renderMessageContent(assistant.content, answer); }
         showCourseDraft(data.draft);
       }
       if (event === "document_draft" && data.document_draft) {
         if (!assistant) assistant = appendMessage({ role: "assistant", content: "", created_at: new Date().toISOString() });
-        if (!answer) renderMessageContent(assistant.content, "Document draft ready for review.");
+        if (!answer) { answer = "Document draft ready for review."; renderMessageContent(assistant.content, answer); }
         loadDocumentDraftById(data.document_draft.id).catch(showError);
       }
       if (event === "error") throw new Error(data.message || "Chat failed");
-      if (event === "done") setStatus("Response saved.", "ready");
+      if (event === "done") {
+        chatStatusText.textContent = "";
+        chatSpinner.classList.remove("active");
+        if (data.summary) {
+          setStatus(data.summary, "ready");
+        } else {
+          setStatus("Response saved.", "ready");
+        }
+        renderMessages();
+      }
     });
   } catch (error) {
     const text = error instanceof Error ? error.message : "Chat failed";
+    chatStatusText.textContent = text;
+    chatSpinner.classList.remove("active");
     setStatus(text, "error");
     if (assistant) {
       assistant.bubble.classList.add("error");
@@ -804,20 +1143,46 @@ draft.addEventListener("click", async () => {
 });
 
 previewDraft.addEventListener("click", () => {
+  if (activeDocumentDraftId) {
+    viewer.src = yearParam(`/api/agent/document-drafts/${activeDocumentDraftId}/preview`);
+    return;
+  }
   if (!activeDraftId) return;
-  viewer.src = `/api/agent/drafts/${activeDraftId}/preview`;
-  preview.href = `/api/agent/drafts/${activeDraftId}/preview`;
+  viewer.src = yearParam(`/api/agent/drafts/${activeDraftId}/preview`);
 });
 
 applyDraft.addEventListener("click", async () => {
-  if (!activeDraftId) return;
+  if (!activeDraftId && !activeDocumentDraftId) return;
   setStatus("Applying draft...");
+
+  if (activeDocumentDraftId) {
+    const response = await fetch(`/api/agent/document-drafts/${activeDocumentDraftId}/apply`, { method: "POST" });
+    if (!response.ok) {
+      throw new Error(await errorMessage(response, "Apply failed"));
+    }
+    const body = await response.json();
+    if (body.version) {
+      setStatus(`Document draft applied. Version saved: ${body.version.name}`, "ready");
+    } else {
+      setStatus("Document draft applied.", "ready");
+    }
+    await loadDocumentPreview();
+    setTab("chat");
+    return;
+  }
+
   const response = await fetch(`/api/agent/drafts/${activeDraftId}/apply`, { method: "POST" });
   if (!response.ok) {
     throw new Error(await errorMessage(response, "Apply failed"));
   }
+  const body = await response.json();
+  if (body.version) {
+    setStatus(`Draft applied. Version saved: ${body.version.name}`, "ready");
+  } else {
+    setStatus("Draft applied.", "ready");
+  }
   await loadCourse(activeCourseId || course.value);
-  setStatus("Draft applied.", "ready");
+  setTab("chat");
 });
 
 loadDocumentDraft.addEventListener("click", () => loadDocumentDraftById(documentDraftSelect.value).catch(showError));
@@ -851,9 +1216,35 @@ window.addEventListener("unhandledrejection", (event) => {
 
 const initialVersion = initialParams.get("version");
 const initialCourse = initialParams.get("course");
-const initialLoad = initialVersion && initialCourse ? loadVersionCourse(initialVersion, initialCourse) : firstAvailableSemester().then(loadSemester);
+const initialLoad = initialVersion && initialCourse ? loadVersionCourse(initialVersion, initialCourse) : loadDocumentPreview();
 
-Promise.all([refreshVersions(), initialLoad]).catch(() => {
+async function checkAuth() {
+  try {
+    const stored = localStorage.getItem('sb-supgrlinqgxvifijgbns-auth-token');
+    if (!stored) {
+      window.location.href = '/auth/';
+      return false;
+    }
+    const { access_token } = JSON.parse(stored);
+    if (!access_token) {
+      window.location.href = '/auth/';
+      return false;
+    }
+    const res = await fetch('/api/auth/check', {
+      headers: { 'Authorization': `Bearer ${access_token}` },
+    });
+    if (!res.ok) {
+      window.location.href = '/auth/';
+      return false;
+    }
+    return true;
+  } catch {
+    window.location.href = '/auth/';
+    return false;
+  }
+}
+
+Promise.all([checkAuth(), refreshVersions(), initialLoad]).catch(() => {
   loading.classList.remove("active");
   setStatus("Backend unavailable.", "error");
 });

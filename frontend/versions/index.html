@@ -3,30 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="../images/SE1128.png" />
     <title>Curriculum Versions</title>
     <link rel="stylesheet" href="versions.css" />
+    <script src="/shared/auth-guard.js"></script>
     <script src="versions.js" defer></script>
   </head>
   <body>
-    <main class="shell">
-      <section class="panel">
-        <div class="toolbar">
-          <select id="version" aria-label="Version"></select>
-          <select id="course" aria-label="Course"></select>
-          <button id="preview-version" type="button">Preview Version</button>
-          <button id="open-editor" type="button">Open Editor</button>
-          <a class="button-link" id="preview-link" target="_blank" rel="noreferrer">Open Preview</a>
+    <header class="toolbar">
+      <span class="toolbar-title">Version History</span>
+      <span class="status-line" id="status" role="status"></span>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar" aria-label="Version history">
+        <div id="version-list" class="version-list"></div>
+      </aside>
+      <section class="viewer-pane">
+        <div class="viewer-bar">
+          <a id="open-editor" class="button-link" href="/live-editor/" hidden>Open in Editor</a>
         </div>
-        <form class="snapshot" id="snapshot-form">
-          <label>
-            Snapshot Label
-            <input id="version-name" name="name" type="text" required />
-          </label>
-          <button class="primary" type="submit">Save Current Curriculum</button>
-        </form>
-        <div class="status-line" id="status"></div>
+        <iframe id="viewer" title="Version preview"></iframe>
       </section>
-      <iframe id="viewer" title="Version preview"></iframe>
     </main>
   </body>
 </html>

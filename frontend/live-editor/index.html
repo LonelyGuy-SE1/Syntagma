@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="../images/SE1128.png" />
     <title>Live Editor - PESU</title>
     <link rel="stylesheet" href="live-editor.css" />
   </head>
@@ -24,7 +25,7 @@
           <option value="course">Course Preview</option>
           <option value="document">Full Document</option>
         </select>
-        <a class="button-link" id="preview" target="_blank" rel="noreferrer">Open</a>
+        <button id="preview" type="button">Open</button>
       </div>
 
       <div class="toolbar-group version-controls">
@@ -34,7 +35,26 @@
         <button id="restore-version" type="button">Restore</button>
       </div>
 
-      <span class="status-line" id="status" role="status"></span>
+      <div class="toolbar-group layout-controls">
+        <button id="toggle-pane" type="button" class="icon-btn" title="Expand chat / collapse preview">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <line x1="14" y1="4" x2="14" y2="20" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="toolbar-group auth-controls">
+        <button id="logout-btn" type="button" class="icon-btn" title="Sign Out">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        </button>
+      </div>
+
+      <span class="status-line" id="status" role="status" hidden></span>
     </header>
 
     <main class="workspace">
@@ -52,19 +72,34 @@
 
         <section class="panel chat-panel active" id="chat-panel" role="tabpanel" aria-labelledby="chat-tab">
           <div class="thread-bar">
-            <select id="chat-session" aria-label="Chat thread"></select>
-            <input id="chat-title" type="text" aria-label="Chat title" />
-            <button id="rename-chat" type="button">Rename</button>
+            <div class="thread-selector">
+              <select id="chat-session" aria-label="Chat thread"></select>
+              <button id="rename-chat" type="button" class="icon-btn" title="Rename thread">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+            </div>
+            <input id="chat-title" type="text" aria-label="Chat title" hidden />
             <button class="danger" id="delete-chat" type="button">Delete</button>
             <button id="new-chat" type="button">New</button>
+            <div class="context-info" id="context-info">
+              <span class="context-badge" id="context-badge" title="Model context window"></span>
+              <span class="context-usage" id="context-usage"></span>
+            </div>
           </div>
           <div class="chat-log" id="chat-log" aria-live="polite"></div>
+          <div class="chat-status" id="chat-status" role="status">
+            <span class="spinner" id="chat-spinner" aria-hidden="true"></span>
+            <span id="chat-status-text"></span>
+          </div>
           <div class="composer">
             <div class="attachments" id="draft-attachments"></div>
             <textarea id="message" aria-label="Message"></textarea>
             <div class="composer-actions">
               <button id="attach" type="button">Attach</button>
-              <input id="files" type="file" multiple accept="image/*,.pdf,.txt,.doc,.docx" hidden />
+              <input id="files" type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.png,.jpg,.jpeg" hidden />
               <button class="primary" id="send" type="button">Send</button>
             </div>
           </div>
@@ -82,11 +117,11 @@
           <div class="document-draft">
             <div class="draft-loader">
               <select id="course-draft-select" aria-label="Course draft"></select>
-              <button id="load-course-draft" type="button">Load Course</button>
+              <button id="load-course-draft" type="button" title="Load single‑course draft from agent">Load Course</button>
             </div>
             <div class="draft-loader">
               <select id="document-draft-select" aria-label="Document draft"></select>
-              <button id="load-document-draft" type="button">Load Document</button>
+              <button id="load-document-draft" type="button" title="Load multi‑course document draft from agent">Load Document</button>
             </div>
           </div>
           <div class="review-summary" id="review-summary"></div>
@@ -99,6 +134,18 @@
       </aside>
     </main>
 
+    <div class="preview-overlay" id="preview-overlay" hidden>
+      <div class="preview-modal">
+        <div class="preview-header">
+          <span class="preview-filename" id="preview-filename"></span>
+          <button class="preview-close" id="preview-close" type="button">&times;</button>
+        </div>
+        <div class="preview-body" id="preview-body"></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
     <script src="live-editor.js" defer></script>
   </body>
 </html>
