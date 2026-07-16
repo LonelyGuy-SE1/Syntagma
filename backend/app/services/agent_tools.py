@@ -1,14 +1,12 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 import base64
-import json
 import re
 from urllib.parse import quote_plus
 
 import httpx
-from weasyprint import HTML
 
-from app.services.curriculum import create_version_snapshot, draft_record, load_agent_draft, load_document_draft, ordered_courses, refined_course, selected_curriculum_year
+from app.services.curriculum import create_version_snapshot, draft_record, load_agent_draft, load_document_draft, ordered_courses, refined_course
 from app.services.diffing import diff_course
 from app.supabase import first_row, supabase
 
@@ -351,9 +349,6 @@ def _create_report(arguments: dict) -> dict:
     
     if fmt == "pdf":
         # Convert markdown to HTML then to PDF
-        import subprocess
-        import tempfile
-        import os
         
         # Simple markdown to HTML conversion
         html_content = _markdown_to_html(content)

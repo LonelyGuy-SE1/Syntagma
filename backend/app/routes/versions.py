@@ -166,7 +166,13 @@ def get_version(version_id: int):
     except APIError as exc:
         raise database_http_exception(exc) from exc
     courses = [_course_summary(row) for row in rows]
-    courses.sort(key=lambda course: (int(course.get("semester") or 0), str(course.get("course_code") or ""), str(course.get("course_title") or "")))
+    courses.sort(
+        key=lambda course: (
+            int(course.get("semester") or 0),
+            str(course.get("course_code") or ""),
+            str(course.get("course_title") or ""),
+        )
+    )
     return {"version": version, "courses": courses}
 
 
@@ -186,7 +192,7 @@ def preview_version_course(version_id: int, refined_id: int, curriculum_year: st
         snapshot = _snapshot(version_id, refined_id)
     except APIError as exc:
         raise database_http_exception(exc) from exc
-    version = _version(version_id)
+    _version(version_id)
     html = templates.get_template("jinja_sample.html").render(course=snapshot["course_json"], curriculum_year=selected_curriculum_year(curriculum_year), asset_root="/")
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
@@ -194,7 +200,7 @@ def preview_version_course(version_id: int, refined_id: int, curriculum_year: st
 @router.get("/versions/{version_id}/preview")
 def preview_version(version_id: int, diff: bool = Query(False), curriculum_year: str | None = Query(None)):
     try:
-        version = _version(version_id)
+        _version(version_id)
         rows = (
             supabase.table("finalized_submissions")
             .select("*")

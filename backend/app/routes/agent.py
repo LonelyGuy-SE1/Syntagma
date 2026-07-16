@@ -1,5 +1,3 @@
-from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse
