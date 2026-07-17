@@ -6,23 +6,31 @@
 
 body {
   margin: 0;
-  min-height: 100dvh;
-  background: var(--page-bg);
-  color: var(--text);
-  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  padding: 2rem;
+
+  background:
+    linear-gradient(180deg, rgba(0,55,123,.05), transparent 45%),
+    var(--page-bg);
+
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-.shell {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
+.shell{
+    max-width:1400px;
+    margin:auto;
+
+    display:grid;
+    gap:1.5rem;
 }
 
 .topbar,
-.panel {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
+.panel{
+    background:white;
+    border:1px solid var(--border);
+    border-radius:20px;
+    box-shadow:var(--shadow-md);
 }
 
 .topbar {
@@ -30,13 +38,54 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px;
+  padding: 2rem;
 }
 
-h1 {
-  margin: 0;
-  color: var(--pesu-blue);
-  font-size: 22px;
+.topbar h1::after {
+  content: "";
+
+  display: block;
+
+  width: 85px;
+  height: 4px;
+
+  margin-top: 14px;
+
+  border-radius: 999px;
+
+  background: linear-gradient(
+    90deg,
+    var(--pesu-blue),
+    var(--pesu-orange)
+  );
+}
+
+h1{
+    margin:0;
+
+    font-family:"Source Serif 4", Georgia, serif;
+    font-size:clamp(2rem,3vw,2.5rem);
+
+    color:var(--pesu-blue);
+}
+
+.topbar .title::after{
+    content:"";
+    display:block;
+
+    width:85px;
+    height:4px;
+
+    margin-top:14px;
+
+    border-radius:999px;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--pesu-blue),
+            var(--pesu-orange)
+        );
 }
 
 p {
@@ -58,8 +107,22 @@ p {
   border-bottom: 1px solid var(--border);
 }
 
-.filters input {
-  flex: 1;
+.filters input{
+
+    flex:1;
+
+    height:46px;
+
+    border-radius:12px;
+
+    transition:.25s;
+}
+
+.filters select{
+
+    height:46px;
+
+    border-radius:12px;
 }
 
 #status {
@@ -84,19 +147,27 @@ td {
   font-size: 14px;
 }
 
-th {
-  color: var(--pesu-blue);
-  background: #f8fafc;
-  font-size: 12px;
-  text-transform: uppercase;
+th{
+
+    background:#fbfcfe;
+
+    color:var(--pesu-blue);
+
+    font-size:13px;
+
+    letter-spacing:.08em;
+
+    font-weight:700;
 }
 
-.course-row {
-  cursor: pointer;
+.course-row{
+
+    transition:.2s;
 }
 
-.course-row:hover {
-  background: #f8fafc;
+.course-row:hover{
+
+    background:#f8fbff;
 }
 
 .details {
@@ -124,7 +195,10 @@ th {
     flex-direction: column;
   }
 
-  #status {
-    margin-left: 0;
-  }
+  #status{
+
+    border-radius:10px;
+
+    padding:10px 14px;
+}
 }
