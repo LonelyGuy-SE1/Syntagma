@@ -106,6 +106,3 @@ class CourseSubmission(BaseModel):
     @classmethod
     def strip(cls, value):
         return value.strip() if isinstance(value, str) else value
-
-    def parsed_code(self) -> ParsedCourseCode:
-        return parse_course_code(self.course_code)
