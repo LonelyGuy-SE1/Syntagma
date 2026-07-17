@@ -29,7 +29,7 @@ Automate PES University's B.Tech curriculum management: faculty submit raw cours
 
 ## Live Demo
 
-**[pesucurriculum.vercel.app](https://pesucurriculum.vercel.app/)** (preferred, works across browsers)
+**[pesucurriculum.lonelyguy.tech](https://pesucurriculum.lonelyguy.tech/)** (preferred, works across browsers)
 
 Backup: [HF Space](https://huggingface.co/spaces/Lonelyguyse1/Curriculum-Backend) (may have compatibility issues on some browsers)
 
