@@ -6,9 +6,8 @@ import re
 from urllib.parse import quote_plus
 
 import httpx
-from weasyprint import HTML
 
-from app.services.curriculum import create_version_snapshot, draft_record, load_agent_draft, load_document_draft, ordered_courses, refined_course, selected_curriculum_year
+from app.services.curriculum import REFINED_FIELDS, create_version_snapshot, draft_record, load_agent_draft, load_document_draft, ordered_courses, refined_course, selected_curriculum_year
 from app.services.diffing import diff_course
 from app.supabase import first_row, supabase
 
@@ -294,14 +293,6 @@ def _create_refined_course(arguments: dict) -> dict:
     return {"refined_id": row["id"], "updated": False, "course": row}
 
 
-REFINED_FIELDS = {
-    "semester", "course_code", "course_title", "program",
-    "lecture_hours", "tutorial_hours", "practical_hours", "self_study",
-    "credits", "course_type", "tools_languages", "desirable_knowledge",
-    "prelude", "objectives", "course_outcomes", "units", "lab_experiments",
-    "text_books", "reference_books", "status",
-}
-
 
 def _get_curriculum_json(arguments: dict) -> dict:
     query = supabase.table("refined_submissions").select("*").in_("status", ["refined"])
@@ -434,10 +425,6 @@ def _create_report(arguments: dict) -> dict:
     
     if fmt == "pdf":
         # Convert markdown to HTML then to PDF
-        import subprocess
-        import tempfile
-        import os
-        
         # Simple markdown to HTML conversion
         html_content = _markdown_to_html(content)
         html_full = f"""<!DOCTYPE html>

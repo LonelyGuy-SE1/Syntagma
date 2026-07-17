@@ -59,7 +59,6 @@ _TOOL_LABELS = {
     "diff_course_json": "Comparing courses",
     "diff_versions": "Comparing versions",
     "get_version": "Loading snapshot",
-    "update_course_field": "Updating course",
     "update_deterministic_fields": "Updating course",
     "get_attachment_text": "Reading attachment",
     "list_specializations": "Loading specializations",
@@ -69,6 +68,12 @@ _TOOL_LABELS = {
     "fetch_url": "Fetching URL",
     "web_search": "Searching the web",
     "signal_done": "Finalizing",
+    "get_document_draft": "Reading document draft",
+    "create_curriculum_version": "Creating snapshot",
+    "get_course_draft": "Reading draft",
+    "remove_elective_from_tracks": "Removing elective",
+    "get_preview_url": "Getting preview URL",
+    "list_courses": "Looking up courses",
 }
 
 
@@ -270,7 +275,14 @@ def _chat_with_tools(messages: list[dict], tools: list[dict], tool_runner, on_to
         result = {}
         for tool_call in tool_calls:
             name = (tool_call.get("function") or {}).get("name") or ""
-            arguments = _tool_arguments(tool_call)
+            try:
+                arguments = _tool_arguments(tool_call)
+            except (ValueError, json.JSONDecodeError) as exc:
+                result = {"error": f"Invalid tool arguments: {exc}"}
+                yield {"$status": f"{tool_status_label(name)}..."}
+                yield {"$event": "tool_result", "name": name, "status": "error"}
+                messages.append({"role": "tool", "tool_call_id": tool_call.get("id") or name, "name": name, "content": json.dumps(result, ensure_ascii=False)})
+                continue
             yield {"$status": f"{tool_status_label(name)}..."}
             yield {"$event": "tool_call", "name": name, "arguments": arguments}
             try:

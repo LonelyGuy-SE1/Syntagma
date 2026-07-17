@@ -1,5 +1,6 @@
 from os import environ
 
+from app import cache
 from app.preview import build_course_preview
 from app.services.diffing import diff_course, merge_fields, validate_draft
 from app.supabase import first_row, supabase
@@ -69,8 +70,15 @@ def attach_submissions(rows: list[dict]) -> list[dict]:
     ids = [row["submission_id"] for row in rows if row.get("submission_id")]
     if not ids:
         return rows
+    cache_key = f"attach:{','.join(str(i) for i in sorted(ids))}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        for row in rows:
+            row["_submission"] = cached.get(row.get("submission_id"), {})
+        return rows
     submissions = supabase.table("submissions").select("*").in_("id", ids).execute().data
     by_id = {row["id"]: row for row in submissions}
+    cache.put(cache_key, by_id, ttl=30)
     for row in rows:
         row["_submission"] = by_id.get(row.get("submission_id"), {})
     return rows

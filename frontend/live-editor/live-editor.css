@@ -13,9 +13,9 @@ body {
   height: 100dvh;
   display: grid;
   grid-template-rows: auto 1fr;
-  background: #f0f2f5;
-  color: #111827;
-  font-family: Arial, sans-serif;
+  background: var(--page-bg);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   overflow: hidden;
 }
 
@@ -26,8 +26,8 @@ body {
   gap: 8px;
   min-height: 56px;
   padding: 10px 12px;
-  background: #fff;
-  border-bottom: 1px solid #d1d5db;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
 }
 
 .toolbar-group {
@@ -1070,4 +1070,20 @@ iframe {
   margin: 0;
   color: #1f2937;
   padding: 16px;
+}
+
+@media (max-width: 980px) {
+  .toolbar { min-height: auto; padding: 8px 10px; gap: 6px; }
+  .toolbar-group { padding-right: 6px; gap: 6px; }
+  .toolbar-group.version-controls { display: none; }
+  .side-pane { min-width: 0; }
+}
+
+@media (max-width: 768px) {
+  .workspace { grid-template-columns: 1fr !important; }
+  .preview-pane { display: none; }
+  .side-pane { border-left: 0; }
+  .toolbar-group.version-controls { display: none; }
+  .toolbar-group.layout-controls { display: none; }
+  .toolbar-group.auth-controls { margin-left: auto; }
 }

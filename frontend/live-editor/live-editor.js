@@ -100,7 +100,6 @@ const TOOL_LABELS = {
   diff_course_json: "Comparing courses",
   diff_versions: "Comparing versions",
   get_version: "Loading snapshot",
-  update_course_field: "Updating course",
   update_deterministic_fields: "Updating course",
   get_attachment_text: "Reading attachment",
   list_specializations: "Loading specializations",
@@ -110,6 +109,12 @@ const TOOL_LABELS = {
   fetch_url: "Fetching URL",
   web_search: "Searching the web",
   signal_done: "Finalizing",
+  get_document_draft: "Reading document draft",
+  create_curriculum_version: "Creating snapshot",
+  get_course_draft: "Reading draft",
+  remove_elective_from_tracks: "Removing elective",
+  get_preview_url: "Getting preview URL",
+  list_courses: "Looking up courses",
 };
 
 let activeCourseId = "";

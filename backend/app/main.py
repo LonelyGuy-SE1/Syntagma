@@ -1,4 +1,6 @@
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import sentry_sdk
@@ -31,7 +33,15 @@ def frontend_directory():
     )
     return next((path for path in candidates if path.exists()), None)
 
-app = FastAPI(title="PESU Curriculum Automation")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    from app.routes.preview import preload_pdfs
+    preload_pdfs()
+    yield
+
+
+app = FastAPI(title="PESU Curriculum Automation", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

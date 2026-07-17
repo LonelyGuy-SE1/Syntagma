@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 
@@ -386,7 +387,6 @@ async def upload_chat_attachments(session_id: int, files: list[UploadFile] = Fil
         text, status, error = extract_text(file.filename or "attachment", file.content_type or "", data)
         
         # Store binary content as base64 for non-text files
-        import base64
         content_base64 = ""
         if file.content_type and not file.content_type.startswith("text/") and file.content_type != "application/json":
             content_base64 = base64.b64encode(data).decode()
@@ -430,7 +430,6 @@ def download_chat_attachment(session_id: int, attachment_id: int):
         raise HTTPException(status_code=404, detail="Attachment not found")
     row = row[0]
     
-    import base64
     content = row.get("content_base64")
     if content:
         data = base64.b64decode(content)
@@ -452,7 +451,6 @@ def preview_chat_attachment(session_id: int, attachment_id: int):
         raise HTTPException(status_code=404, detail="Attachment not found")
     row = row[0]
 
-    import base64
     content_type = row.get("content_type") or ""
     text = row.get("extracted_text") or ""
     b64 = row.get("content_base64") or ""
