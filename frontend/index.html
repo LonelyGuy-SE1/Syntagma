@@ -20,7 +20,7 @@
         </div>
         <nav class="surface-grid" aria-label="Curriculum surfaces">
           <a class="surface-link" href="form/">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             Input Form
           </a>
           <a class="surface-link" href="courses/">
@@ -47,7 +47,11 @@
       const yearInput = document.getElementById("curriculum-year");
       const saveBtn = document.getElementById("save-year");
       const yearStatus = document.getElementById("year-status");
-      yearInput.value = localStorage.getItem("curriculumYear") || "";
+      const DEFAULT_YEAR = "2025-2026";
+      yearInput.value = localStorage.getItem("curriculumYear") || DEFAULT_YEAR;
+      if (!localStorage.getItem("curriculumYear")) {
+        localStorage.setItem("curriculumYear", DEFAULT_YEAR);
+      }
       saveBtn.addEventListener("click", () => {
         const val = yearInput.value.trim();
         if (val) localStorage.setItem("curriculumYear", val);

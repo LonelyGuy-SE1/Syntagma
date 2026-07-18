@@ -39,6 +39,17 @@ def test_email_field_not_required():
     pytest.fail("Email input not found")
 
 
+def test_email_field_marked_optional():
+    html = FORM_HTML.read_text()
+    lines = html.splitlines()
+    for i, line in enumerate(lines):
+        if 'id="faculty_email"' in line:
+            preceding = "\n".join(lines[max(0, i - 2):i + 1])
+            assert "(optional)" in preceding
+            return
+    pytest.fail("Email input not found")
+
+
 def test_course_code_field_required():
     html = FORM_HTML.read_text()
     for line in html.splitlines():
@@ -111,3 +122,15 @@ def test_form_has_rule_accent():
 def test_form_has_auth_guard():
     html = FORM_HTML.read_text()
     assert "auth-guard.js" in html
+
+
+def test_shared_css_has_inter_font():
+    css = Path("frontend/shared.css").read_text()
+    assert "Inter" in css
+    assert "fonts.googleapis.com" in css
+
+
+def test_homepage_has_default_year():
+    html = Path("frontend/index.html").read_text()
+    assert "2025-2026" in html
+    assert "DEFAULT_YEAR" in html
