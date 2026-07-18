@@ -1,4 +1,3 @@
-import pickle
 import threading
 import time
 from unittest.mock import MagicMock, patch

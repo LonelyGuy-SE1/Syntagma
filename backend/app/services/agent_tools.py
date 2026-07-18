@@ -16,7 +16,6 @@ from app.services.curriculum import (
     load_document_draft,
     ordered_courses,
     refined_course,
-    selected_curriculum_year,
 )
 from app.services.diffing import diff_course
 from app.supabase import first_row, supabase
@@ -707,6 +706,13 @@ def _get_course_assignments(arguments: dict) -> dict:
         .data
     )
     return {"refined_id": refined_id, "assignments": assignments}
+
+
+def _categorize_elective(arguments: dict) -> dict:
+    """Re-run guarded AI categorization for an elective needing human review."""
+    from app.services.elective_categorization import categorize_refined_elective
+
+    return categorize_refined_elective(_require_int(arguments, "refined_id"))
 
 
 def _update_deterministic_fields(arguments: dict) -> dict:
@@ -1434,6 +1440,16 @@ TOOLS: dict[str, AgentTool] = {
             "required": ["refined_id"],
         },
         _get_course_assignments,
+    ),
+    "categorize_elective": AgentTool(
+        "categorize_elective",
+        "Run guarded AI categorization for a refined elective. It assigns only existing semester tracks with high confidence; all other results require human confirmation.",
+        {
+            **OBJECT,
+            "properties": {"refined_id": {"type": "integer"}},
+            "required": ["refined_id"],
+        },
+        _categorize_elective,
     ),
     "update_deterministic_fields": AgentTool(
         "update_deterministic_fields",

@@ -1,7 +1,4 @@
 from unittest.mock import MagicMock, patch
-import threading
-
-import pytest
 
 
 def test_preload_pdfs_generates_for_each_year():

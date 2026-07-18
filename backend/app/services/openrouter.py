@@ -65,6 +65,7 @@ _TOOL_LABELS = {
     "define_specialization": "Creating specialization",
     "assign_elective_to_tracks": "Categorizing elective",
     "get_course_assignments": "Reading elective assignments",
+    "categorize_elective": "Categorizing elective",
     "fetch_url": "Fetching URL",
     "web_search": "Searching the web",
     "signal_done": "Finalizing",

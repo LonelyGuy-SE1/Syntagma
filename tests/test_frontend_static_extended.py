@@ -1,9 +1,5 @@
 from pathlib import Path
 
-import pytest
-
-from fastapi.testclient import TestClient
-
 
 LIVE_EDITOR_HTML = Path("frontend/live-editor/index.html")
 COURSES_HTML = Path("frontend/courses/index.html")

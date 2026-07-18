@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import patch
 
 import pytest
 
@@ -47,8 +47,8 @@ def test_refined_course_caches_result():
     with patch("app.services.curriculum.first_row", return_value=fake_row), \
          patch("app.services.curriculum.attach_submissions", side_effect=lambda rows: [{**rows[0], "_submission": {}}]), \
          patch("app.services.curriculum.build_course_preview", return_value={"id": 999, "title": "Cached Course"}) as mock_build, \
-         patch.object(cache_module, "get", return_value=None) as mock_get, \
-         patch.object(cache_module, "put") as mock_put:
+         patch.object(cache_module, "get", return_value=None), \
+         patch.object(cache_module, "put"):
         result = refined_course(999)
 
     assert result == {"id": 999, "title": "Cached Course"}
