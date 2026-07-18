@@ -36,6 +36,9 @@
   --error: #dc2626;
   --error-bg: #fef2f2;
   --success-bg: #f0fdf4;
+
+  --shadow-sm: 0 1px 2px rgba(18, 32, 67, 0.06);
+  --shadow-md: 0 4px 16px -4px rgba(18, 32, 67, 0.1);
 }
 
 *,
@@ -113,12 +116,14 @@ a.button-link {
   text-decoration: none;
   cursor: pointer;
   font-weight: 500;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 button:hover,
 a.button-link:hover {
   background: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 button.primary,
@@ -206,4 +211,12 @@ a.button-link:focus-visible {
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) var(--muted);
+}
+
+.rule {
+  width: 64px;
+  height: 4px;
+  margin-top: 0.5rem;
+  border-radius: 999px;
+  background: var(--pesu-orange);
 }

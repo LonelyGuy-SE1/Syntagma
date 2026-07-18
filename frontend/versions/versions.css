@@ -5,6 +5,9 @@
 body {
   display: grid;
   grid-template-rows: auto 1fr;
+  padding: 2rem;
+  gap: 1.25rem;
+  background: var(--page-bg);
 }
 
 .toolbar {
@@ -12,15 +15,17 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  padding: 8px 12px;
-  background: var(--background);
-  border-bottom: 1px solid var(--border);
+  padding: 1.25rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
 }
 
 .toolbar-title {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--foreground);
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--pesu-blue);
 }
 
 .toolbar-actions {
@@ -32,16 +37,19 @@ body {
 .workspace {
   display: grid;
   grid-template-columns: 280px 1fr;
+  gap: 1.25rem;
   min-height: 0;
 }
 
 .sidebar {
-  background: var(--background);
-  border-right: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
   display: grid;
   grid-template-rows: 1fr;
   min-width: 0;
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .version-list {
@@ -53,6 +61,11 @@ body {
   display: grid;
   grid-template-rows: auto 1fr;
   position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .viewer-bar {
@@ -159,6 +172,7 @@ body {
   background: var(--primary);
   color: var(--primary-foreground);
   font-weight: 500;
+  border-left: 3px solid var(--pesu-orange);
 }
 
 .tree-item .item-info { flex: 1; min-width: 0; }

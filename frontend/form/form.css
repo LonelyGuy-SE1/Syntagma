@@ -35,8 +35,9 @@ body {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 2rem;
+  border-radius: 20px;
+  padding: 2.5rem;
+  box-shadow: var(--shadow-md);
 }
 
 h1 {
@@ -106,18 +107,20 @@ button {
   width: 100%;
   padding: 0.625rem;
   border: none;
-  border-radius: 6px;
+  border-radius: 10px;
   background: var(--accent);
   color: var(--bg);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   margin-top: 1rem;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 button:hover {
   background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 button:disabled {

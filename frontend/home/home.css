@@ -7,55 +7,38 @@
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
+  align-items: center;
   justify-content: center;
-  align-items: flex-start;
-  padding: 40px 24px;
-  background:
-    linear-gradient(180deg, rgba(0,55,123,.05), transparent 45%),
-    var(--page-bg);
-  color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 2rem;
+  background: var(--page-bg);
+  color: var(--text);
 }
 
 .home-shell {
-    width: min(95vw, 1400px);
+  width: min(95vw, 800px);
 }
 
 .home-panel {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 20px;
-  padding: 40px 48px;
+  padding: 3rem;
   box-shadow: var(--shadow-md);
 }
 
 h1 {
-  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.75rem;
   font-weight: 700;
-  font-size: clamp(2rem, 3vw, 2.5rem);
   color: var(--pesu-blue);
-  letter-spacing: -0.02em;
-}
-
-.rule {
-  width: 82px;
-  height: 5px;
-  margin-top: 1rem;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    var(--pesu-blue),
-    var(--pesu-orange)
-  );
 }
 
 .year-bar {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 1rem;
+  margin-top: 1.25rem;
   font-size: 0.875rem;
 }
 
@@ -74,7 +57,7 @@ h1 {
 }
 
 .year-bar input:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--pesu-orange);
   outline-offset: -1px;
 }
 
@@ -86,139 +69,93 @@ h1 {
   font-size: 0.875rem;
   font-family: inherit;
   cursor: pointer;
+  transition: border-color 0.15s;
 }
 
 #save-year:hover {
-  border-color: var(--accent);
+  border-color: var(--pesu-orange);
 }
 
 .year-status {
-  color: #16a34a;
+  color: var(--success);
   font-weight: 600;
   font-size: 0.8rem;
 }
 
 .surface-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(220px,1fr));
-  gap: 1.8rem;
-  margin-top: 2.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-top: 1.75rem;
 }
 
 .surface-link {
   position: relative;
-
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-
-  gap: .75rem;
-
-  min-height: 170px;
-
-  padding: 1.6rem;
-
-  background: var(--surface);
-
+  gap: 0.75rem;
+  min-height: 120px;
+  padding: 1.25rem;
   border: 1px solid var(--border);
-  border-radius: 16px;
-
-  text-decoration: none;
+  border-radius: 12px;
+  background: var(--surface);
   color: var(--pesu-blue);
-
-  font-size: 1.1rem;
+  text-decoration: none;
+  font-size: 0.95rem;
   font-weight: 600;
-
-  overflow: hidden;
-
-  transition:
-    transform .25s ease,
-    box-shadow .25s ease,
-    border-color .25s ease,
-    color .25s ease;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
 .surface-link::before {
   content: "";
   position: absolute;
-
   left: 0;
   top: 0;
-
   width: 100%;
-  height: 4px;
-
-  background: linear-gradient(
-    90deg,
-    var(--pesu-blue),
-    var(--pesu-orange)
-  );
-
+  height: 3px;
+  background: var(--pesu-orange);
+  border-radius: 12px 12px 0 0;
   transform: scaleX(0);
   transform-origin: left;
-
-  transition: transform .25s ease;
+  transition: transform 0.2s ease;
 }
 
 .surface-link svg {
-  width: 34px;
-  height: 34px;
-
+  width: 28px;
+  height: 28px;
   stroke: currentColor;
   fill: none;
   stroke-width: 1.8;
-
-  transition:
-    transform .25s ease,
-    stroke .25s ease;
+  transition: stroke 0.15s;
 }
 
-.surface-link:hover,
-.surface-link:focus-visible {
-  transform: translateY(-6px);
-
+.surface-link:hover {
   border-color: var(--pesu-orange);
-
-  box-shadow:
-    0 14px 35px rgba(0,55,123,.12);
-
-  color: var(--pesu-blue);
-
-  outline: none;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
-.surface-link:hover::before,
-.surface-link:focus-visible::before {
+.surface-link:hover::before {
   transform: scaleX(1);
 }
 
-.surface-link:hover svg,
-.surface-link:focus-visible svg {
+.surface-link:hover svg {
   stroke: var(--pesu-orange);
-  transform: scale(1.08);
 }
 
-@media (max-width: 1050px) {
-
-  .surface-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-}
-
-@media (max-width: 700px) {
-
+@media (max-width: 640px) {
   .home-panel {
     padding: 2rem;
   }
-
-  h1 {
-    font-size: 2rem;
+  .surface-grid {
+    grid-template-columns: 1fr 1fr;
   }
+}
 
+@media (max-width: 400px) {
   .surface-grid {
     grid-template-columns: 1fr;
   }
-
 }
