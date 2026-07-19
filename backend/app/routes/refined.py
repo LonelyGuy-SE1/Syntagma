@@ -22,6 +22,10 @@ def update_refined(refined_id: int, payload: dict):
     if not isinstance(fields, dict):
         raise HTTPException(status_code=400, detail="fields is required")
     try:
-        return {"message": "Updated", "data": update_refined_fields(refined_id, fields)}
+        data = update_refined_fields(refined_id, fields)
+        row = first_row(supabase.table("refined_submissions").select("status").eq("id", refined_id))
+        if row and row.get("status") == "draft":
+            supabase.table("refined_submissions").update({"status": "refined"}).eq("id", refined_id).execute()
+        return {"message": "Updated", "data": data}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

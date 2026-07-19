@@ -140,6 +140,7 @@ def apply_agent_draft(draft_id: int):
             }
         ).execute()
         data = update_refined_fields(int(draft["refined_id"]), draft["proposed_json"])
+        supabase.table("refined_submissions").update({"status": "refined"}).eq("id", int(draft["refined_id"])).execute()
         supabase.table("agent_drafts").update({"status": "applied"}).eq("id", draft_id).execute()
         version_name = _generate_version_name(summary, "apply")
         version = create_version_snapshot(version_name)
@@ -245,6 +246,7 @@ def apply_agent_document_draft(document_draft_id: int):
                 }
             ).execute()
             update_refined_fields(int(draft["refined_id"]), draft["proposed_json"])
+            supabase.table("refined_submissions").update({"status": "refined"}).eq("id", int(draft["refined_id"])).execute()
             supabase.table("agent_drafts").update({"status": "applied"}).eq("id", draft["id"]).execute()
             applied.append(draft["id"])
         except APIError as exc:
