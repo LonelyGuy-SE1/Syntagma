@@ -122,6 +122,7 @@ let activeCourseId = "";
 let activeDraftId = "";
 let activeDocumentDraftId = "";
 let activeSessionId = "";
+let chatLoadSeq = 0;
 let queuedFiles = [];
 let versionMode = false;
 let activeAbortController = null;
@@ -329,7 +330,7 @@ async function createChatSession() {
   const response = await fetch("/api/chat/sessions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(activeCourseId ? { refined_id: Number(activeCourseId), title: statusText.textContent } : { title: "Full Document" }),
+    body: JSON.stringify(activeCourseId ? { refined_id: Number(activeCourseId), title: statusText.textContent } : { title: "New Thread" }),
   });
   if (!response.ok) throw new Error("Unable to create agent session");
   const body = await response.json();
@@ -595,6 +596,10 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !preview
 function messageNode(item) {
   const bubble = document.createElement("div");
   bubble.className = `message ${item.role}`;
+  if (item.role === "tool") {
+    const callType = item.metadata?.tool_call_type || (item.content || "").startsWith("\u2699") ? "call" : "result";
+    bubble.classList.add(callType === "call" ? "tool-call" : "tool-result");
+  }
   const content = document.createElement("div");
   content.className = "message-body";
   renderMessageContent(content, item.content || "");
@@ -693,9 +698,13 @@ function appendMessage(item) {
 }
 
 async function renderMessages() {
+  const seq = ++chatLoadSeq;
   const messages = await loadMessages();
+  if (seq !== chatLoadSeq) return;
   chatLog.replaceChildren();
   messages.forEach((item) => appendMessage(item));
+  chatStatusText.textContent = "";
+  chatSpinner.classList.remove("active");
 }
 
 function parseEvent(raw) {
@@ -936,6 +945,7 @@ async function queueFiles(fileList) {
 
 async function loadCourse(id) {
   activeCourseId = String(id);
+  history.replaceState({ courseId: activeCourseId }, "", `?course=${activeCourseId}`);
   versionMode = false;
   save.disabled = false;
   showCourseControls();
@@ -963,6 +973,7 @@ async function loadCourse(id) {
 
 async function loadVersionCourse(versionId, refinedId) {
   activeCourseId = String(refinedId);
+  history.replaceState({ courseId: activeCourseId }, "", `?version=${versionId}&course=${activeCourseId}`);
   versionMode = true;
   save.disabled = true;
   showCourseControls();
@@ -1030,6 +1041,7 @@ async function refreshCourseDropdown() {
 
 async function loadCourseForReview(id) {
   activeCourseId = String(id);
+  history.replaceState({ courseId: activeCourseId }, "", `?course=${activeCourseId}`);
   versionMode = false;
   save.disabled = false;
   showCourseControls();
@@ -1140,7 +1152,9 @@ restoreVersion.addEventListener("click", () => restoreSelectedVersion().catch((e
 chatSession.addEventListener("change", async () => {
   activeSessionId = chatSession.value;
   localStorage.setItem(chatKey(), activeSessionId);
-  await refreshChatSessions();
+  chatLog.replaceChildren();
+  chatStatusText.textContent = "Loading...";
+  chatSpinner.classList.add("active");
   await renderMessages();
 });
 
@@ -1262,7 +1276,7 @@ send.addEventListener("click", async () => {
         } else {
           setStatus("Response saved.", "ready");
         }
-        renderMessages();
+        renderMessages().catch(() => {});
       }
     });
   } catch (error) {
@@ -1271,7 +1285,8 @@ send.addEventListener("click", async () => {
     chatStatusText.textContent = text;
     chatSpinner.classList.remove("active");
     setStatus(text, aborted ? "" : "error");
-    if (assistant && !aborted) {
+    if (!aborted) {
+      if (!assistant) assistant = appendMessage({ role: "assistant", content: "", created_at: new Date().toISOString() });
       assistant.bubble.classList.add("error");
       renderMessageContent(assistant.content, text);
     }
@@ -1382,12 +1397,14 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 
 const initialVersion = initialParams.get("version");
-const initialCourse = initialParams.get("course");
+const initialCourse = initialParams.get("course") || history.state?.courseId;
 let initialLoad;
 if (initialVersion && initialCourse) {
   initialLoad = loadVersionCourse(initialVersion, initialCourse);
 } else if (initialVersion) {
   initialLoad = loadVersionInEditor(initialVersion);
+} else if (initialCourse) {
+  initialLoad = loadCourse(initialCourse);
 } else {
   initialLoad = loadDocumentPreview();
 }

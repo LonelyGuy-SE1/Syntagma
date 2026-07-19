@@ -710,15 +710,24 @@ iframe {
   align-items: center;
 }
 
+.composer-actions #send,
+.composer-actions #stop-btn {
+  display: inline-flex !important;
+  visibility: visible !important;
+  min-width: 60px;
+  justify-content: center;
+}
+
 .stop-btn {
   background: #dc2626;
   color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 0 12px;
-  height: 28px;
-  font: 13px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+  border: 2px solid #b91c1c;
+  border-radius: 8px;
+  padding: 0 16px;
+  height: 32px;
+  font: bold 13px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
   cursor: pointer;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
 }
 
 .stop-btn:hover {

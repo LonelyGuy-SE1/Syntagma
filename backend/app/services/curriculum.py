@@ -15,7 +15,9 @@ def invalidate_curriculum_cache():
     cache.invalidate("sem_pdf:")
     cache.invalidate("course:")
     cache.invalidate("course_html:")
+    cache.invalidate("course_pdf:")
     cache.invalidate("sem_courses:")
+    cache.invalidate("courses_list")
     cache.invalidate("pending_courses")
     cache.invalidate("all_course_ids")
     cache.invalidate("ver_preview:")
@@ -175,9 +177,6 @@ def update_refined_fields(refined_id: int, fields: dict) -> dict | None:
                 update[key] = int(update[key] or 0)
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"Invalid value for {key}: {update[key]!r}. Must be a number.") from exc
-    row = first_row(supabase.table("refined_submissions").select("status").eq("id", refined_id))
-    if row and row.get("status") == "draft":
-        update["status"] = "refined"
     result = supabase.table("refined_submissions").update(update).eq("id", refined_id).execute()
     invalidate_curriculum_cache()
     return result.data[0] if result.data else None

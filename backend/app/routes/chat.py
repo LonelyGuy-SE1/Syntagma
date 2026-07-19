@@ -32,6 +32,9 @@ def load_chat_session(session_id: int) -> dict:
 def chat_messages(session_id: int) -> list[dict]:
     rows = supabase.table("chat_messages").select("*").eq("session_id", session_id).order("id").execute().data
 
+    if not rows:
+        return rows
+
     all_ids: list[int] = []
     for row in rows:
         for att in (row.get("metadata") or {}).get("attachments") or []:
@@ -40,30 +43,31 @@ def chat_messages(session_id: int) -> list[dict]:
 
     known_ids = set(all_ids)
 
-    orphan_rows = (
-        supabase.table("chat_attachments")
-        .select("id,filename,content_type,size_bytes,status,error")
-        .eq("session_id", session_id)
-        .is_("message_id", "null")
-        .execute().data
-    )
-    orphans = [r for r in orphan_rows if r["id"] not in known_ids]
+    if not known_ids:
+        orphan_rows = (
+            supabase.table("chat_attachments")
+            .select("id,filename,content_type,size_bytes,status,error")
+            .eq("session_id", session_id)
+            .is_("message_id", "null")
+            .execute().data
+        )
+        orphans = [r for r in orphan_rows if r["id"] not in known_ids]
 
-    if orphans:
-        last_assistant = None
-        for row in reversed(rows):
-            if row.get("role") == "assistant":
-                last_assistant = row
-                break
-        if last_assistant:
-            meta = last_assistant.get("metadata") or {}
-            existing = meta.get("attachments") or []
-            for o in orphans:
-                existing.append({"id": o["id"]})
-                all_ids.append(o["id"])
-                known_ids.add(o["id"])
-            meta["attachments"] = existing
-            last_assistant["metadata"] = meta
+        if orphans:
+            last_assistant = None
+            for row in reversed(rows):
+                if row.get("role") == "assistant":
+                    last_assistant = row
+                    break
+            if last_assistant:
+                meta = last_assistant.get("metadata") or {}
+                existing = meta.get("attachments") or []
+                for o in orphans:
+                    existing.append({"id": o["id"]})
+                    all_ids.append(o["id"])
+                    known_ids.add(o["id"])
+                meta["attachments"] = existing
+                last_assistant["metadata"] = meta
 
     if not all_ids:
         return rows
@@ -157,6 +161,7 @@ def chat_system_prompt(session: dict) -> str:
     return f"""You are the PESU Curriculum Automation live editor assistant.
 Be concise, practical, and specific to the active curriculum data.
 Keep conversations professional and friendly. Do not use em dashes in any output. Use standard hyphens or commas instead.
+When the user asks you to do something (create a course, generate a report, etc.), first send a brief text message acknowledging the request (1-2 sentences like "I'll create that course for you." or "Working on the report now.") before calling any tools. This lets the user know you received their request and are working on it.
 Always respond by calling a tool -- never state limitations or guess. The available tools handle course data, fetching URLs, searching the web, generating spreadsheets, generating reports, and creating drafts.
 
 Curriculum structure (B.Tech CSE):
@@ -167,6 +172,7 @@ Curriculum structure (B.Tech CSE):
 - Semesters 5-6 have elective specialization tracks (e.g. Machine Intelligence and Data Science, Cybersecurity, etc.). Tracks are labeled with letters (A, B, C...). Each track has a set of elective courses assigned to it.
 - Deterministic/protected fields (require update_deterministic_fields to change): program, lecture_hours, tutorial_hours, practical_hours, self_study, credits, course_type. These are auto-computed from credit_category and target_department.
 - Agent-editable fields: course_code, course_title, semester, tools_languages, desirable_knowledge, prelude, objectives, course_outcomes, units, lab_experiments, text_books, reference_books.
+- desirable_knowledge should only reference courses that actually exist in the curriculum (use list_courses or get_course_codes to check). For brand-new courses with no prior dependencies, set it to an empty string. Never invent course names for desirable_knowledge.
 - Courses have a status: "draft" (newly created, not yet finalized), "refined" (approved and visible in curriculum), "archived" (hidden).
 - When a course is in "draft" status, you can update it directly with create_refined_course (pass the refined_id). Do not create a separate draft for draft-status courses.
 
@@ -184,6 +190,7 @@ Read source documents with get_attachment_text, then call create_report to save 
 
 Tool selection for course changes (critical):
 - create_course_draft: For modifying an existing course that has status "refined". Creates a reviewable draft the user must approve. Requires refined_id and a "fields" object containing ONLY the fields to change.
+- update_agent_draft: For modifying a draft you already created (instead of creating a duplicate). Requires the draft_id from a previous create_course_draft call and a "fields" object with the changes. Use this when you need to adjust a draft after reviewing it.
 - create_refined_course: For creating a brand-new course OR updating a course that still has status "draft". Pass all course details as flat arguments. For updates, include the refined_id.
 - create_document_draft: For changes across multiple existing courses.
 - update_deterministic_fields: ONLY for changing protected fields (program, hours, credits, course_type). Creates a blocked draft. Always confirm with the user first.
@@ -367,6 +374,11 @@ def create_chat_message(session_id: int, payload: ChatMessagePayload):
                 if isinstance(item, dict) and "$event" in item:
                     event = item["$event"]
                     data = {k: v for k, v in item.items() if k != "$event"}
+                    if event == "tool_call":
+                        insert_chat_message(session_id, "tool", f"\u2699 {data.get('name', '')}({json.dumps(data.get('arguments', {}), ensure_ascii=False)})", {"name": data.get("name"), "arguments": data.get("arguments"), "tool_call_type": "call"})
+                    elif event == "tool_result":
+                        status_char = "\u2713" if data.get("status") == "ok" else "\u2717"
+                        insert_chat_message(session_id, "tool", f"{status_char} {data.get('name', '')} completed", {"name": data.get("name"), "status": data.get("status"), "tool_call_type": "result"})
                     yield sse(event, data)
                     continue
                 yield from flush_tool_results()

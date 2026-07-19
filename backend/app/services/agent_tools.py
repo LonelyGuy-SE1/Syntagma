@@ -242,12 +242,39 @@ def _create_course_draft(arguments: dict) -> dict:
     if not row:
         raise ValueError(f"Course with refined_id {refined_id} not found.")
     if row.get("status") == "draft":
-        from app.services.curriculum import update_refined_fields
-        update_refined_fields(refined_id, fields)
-        return {"message": f"Course {refined_id} is still a draft. Updated directly without creating a review draft.", "direct_update": True}
+        raise ValueError(f"Course {refined_id} has status 'draft'. Use create_refined_course with the refined_id to update draft-status courses directly.")
     record = draft_record(refined_id, fields, str(arguments.get("reason") or ""))
     draft = supabase.table("agent_drafts").insert(record).execute().data[0]
     return {"draft": draft}
+
+
+def _update_agent_draft(arguments: dict) -> dict:
+    draft_id = _require_int(arguments, "draft_id")
+    fields = arguments.get("fields")
+    if not isinstance(fields, dict) or not fields:
+        raise ValueError(
+            'fields must be a non-empty object containing only the fields to change, e.g. {"text_books": "new value"}.'
+        )
+    row = first_row(supabase.table("agent_drafts").select("refined_id,proposed_json,status").eq("id", draft_id))
+    if not row:
+        raise ValueError(f"Draft with id {draft_id} not found.")
+    if row.get("status") not in ("proposed", "blocked"):
+        raise ValueError(f"Draft {draft_id} has status '{row.get('status')}' and cannot be edited. Only proposed or blocked drafts can be updated.")
+    from app.services.curriculum import merge_fields, diff_course, validate_draft
+    proposed = merge_fields(row["proposed_json"], fields)
+    base = first_row(supabase.table("refined_submissions").select("*").eq("id", int(row["refined_id"])))
+    base = base or {}
+    summary = diff_course(base, proposed)
+    issues = validate_draft(base, proposed)
+    summary["validation_issues"] = issues
+    update = {
+        "proposed_json": proposed,
+        "json_patch": summary.pop("json_patch"),
+        "diff_summary": summary,
+        "status": "blocked" if issues else "proposed",
+    }
+    result = supabase.table("agent_drafts").update(update).eq("id", draft_id).execute()
+    return {"draft": result.data[0] if result.data else row}
 
 
 _ARRAY_FIELDS = {
@@ -312,6 +339,9 @@ def _create_refined_course(arguments: dict) -> dict:
     for key in _ARRAY_FIELDS:
         if key in fields:
             fields[key] = _coerce_array(fields[key])
+    dk = str(fields.get("desirable_knowledge") or "").strip()
+    if dk and dk.lower() in ("none", "n/a", "na", "-"):
+        fields["desirable_knowledge"] = ""
     fields.update(computed)
 
     refined_id = arguments.get("refined_id")
@@ -1152,6 +1182,20 @@ TOOLS: dict[str, AgentTool] = {
             "required": ["refined_id", "fields"],
         },
         _create_course_draft,
+    ),
+    "update_agent_draft": AgentTool(
+        "update_agent_draft",
+        "Update an existing proposed or blocked draft with new field values. Use this to modify a draft you already created instead of creating a duplicate. Merges the new fields into the existing proposed_json.",
+        {
+            **OBJECT,
+            "properties": {
+                "draft_id": {"type": "integer", "description": "The ID of the existing draft to update"},
+                "fields": {"type": "object", "description": "Fields to update in the draft's proposed content"},
+                "reason": {"type": "string", "description": "Why the draft is being updated"},
+            },
+            "required": ["draft_id", "fields"],
+        },
+        _update_agent_draft,
     ),
     "create_refined_course": AgentTool(
         "create_refined_course",

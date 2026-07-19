@@ -59,17 +59,10 @@ def _prewarm_cache():
             from app import cache
             from app.supabase import supabase
 
-            rows = supabase.table("refined_submissions").select("id,status,semester").in_("status", ["refined"]).eq("visible", True).order("id").execute().data
+            rows = supabase.table("refined_submissions").select("id,status").in_("status", ["refined"]).eq("visible", True).order("id").execute().data
             ids = [row["id"] for row in rows]
-            semesters: dict[int, list[int]] = {}
-            for row in rows:
-                sem = row.get("semester")
-                if sem is not None:
-                    semesters.setdefault(int(sem), []).append(row["id"])
             cache.put("all_course_ids", ids, ttl=300)
-            for sem, sem_ids in semesters.items():
-                cache.put(f"sem_courses:{sem}", sem_ids, ttl=300)
-            logger.info("Cache prewarm complete: %d courses across %d semesters", len(ids), len(semesters))
+            logger.info("Cache prewarm complete: %d courses", len(ids))
         except Exception:
             logger.debug("Cache prewarm failed", exc_info=True)
 
