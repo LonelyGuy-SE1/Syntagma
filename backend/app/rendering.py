@@ -29,7 +29,11 @@ def _load_pes_logo() -> str:
     if logo_path.exists():
         b64 = base64.b64encode(logo_path.read_bytes()).decode()
         return f"data:image/png;base64,{b64}"
-    return ""
+    try:
+        from app._logo_data import PES_LOGO_DATA_URI
+        return PES_LOGO_DATA_URI
+    except ImportError:
+        return ""
 
 
 FRONTEND_DIR = _find_frontend_dir()
