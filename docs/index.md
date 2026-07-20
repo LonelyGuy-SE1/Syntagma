@@ -3,6 +3,19 @@ title: PESU Curriculum Automation
 permalink: /
 ---
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll("code.language-mermaid").forEach(function (el) {
+    var container = document.createElement("div");
+    container.classList.add("mermaid");
+    container.textContent = el.textContent;
+    el.closest(".highlighter-rouge").replaceWith(container);
+  });
+  mermaid.initialize({ startOnLoad: true, theme: "default" });
+});
+</script>
+
 # PESU Curriculum Automation
 
 PESU Curriculum Automation is a FastAPI + static-frontend application that collects
@@ -229,41 +242,47 @@ There is no Node build step on the frontend.
 
 #### Dashboard
 
-![Dashboard](../assets/images/home_page.png)
+![Dashboard -- navigation hub linking to all surfaces](assets/images/home_page.png)
 
 #### Course Submission
 
-![Course Submission](../assets/images/submit_course_page.png)
+![Course Submission -- faculty enter course code, title, content, and references](assets/images/submit_course_page.png)
 
 #### Courses Management
 
-![Courses Default](../assets/images/courses_default.png)
+![Courses Default -- filterable table with semester, code, title, credits, and visibility toggle](assets/images/courses_default.png)
 
-![Courses with Filter and Visibility Toggle](../assets/images/courses_filtered_vosible_toggle.png)
+![Courses with Filter and Visibility Toggle -- semester and visibility filters applied](assets/images/courses_filtered_visible_toggle.png)
 
-![Delete Confirmation](../assets/images/courses_delete_modal.png)
+![Delete Confirmation -- confirmation dialog before archiving a course](assets/images/courses_delete_modal.png)
 
 #### PDF Preview
 
-![Full Document Preview](../assets/images/preview_full_doc.png)
+![Full Document Preview -- complete curriculum rendered as a multi-page PDF in the browser](assets/images/preview_full_doc.png)
 
-![Semester Preview](../assets/images/preview_full_sem.png)
+![Semester Preview -- single semester PDF with summary tables and course details](assets/images/preview_full_sem.png)
 
-![Single Course Preview](../assets/images/preview_single_course.png)
+![Single Course Preview -- individual course page with syllabus, textbooks, and outcomes](assets/images/preview_single_course.png)
+
+#### Agentic Editor
+
+![Agentic Editor -- AI assistant chat, JSON fields editor, and draft review in a three-tab side panel](assets/images/editor_sample_annotated.png)
+
+![Agentic Editor Single Course -- course preview with agent chat and version controls](assets/images/editor_single_course.png)
 
 #### Version History
 
-![Versions Default](../assets/images/versions_default.png)
+![Versions Default -- sidebar list of curriculum snapshots with expand/collapse groups](assets/images/versions_default.png)
 
-![Version Comparison](../assets/images/versions_annotated_comparision.png)
+![Version Comparison -- side-by-side diff between two version snapshots](assets/images/versions_annotated_comparision.png)
 
-![Version Rename](../assets/images/versions_rename_category.png)
+![Version Rename -- inline rename form for version names and categories](assets/images/versions_rename_category.png)
 
-![Current Document Version](../assets/images/versions_current_document.png)
+![Current Document Version -- live curriculum state shown as the "Current" entry](assets/images/versions_current_document.png)
 
 #### Sign In
 
-![Sign In](../assets/images/auth_page.png)
+![Sign In -- email and password authentication via Supabase Auth](assets/images/auth_page.png)
 
 ### Tests (`tests/`)
 
@@ -404,7 +423,7 @@ list them (`list_specializations`), and categorize electives
 
 ### 5. Agentic Editor
 
-![Agentic Editor](../assets/images/editor_sample_1.png)
+![Agentic Editor](assets/images/editor_sample_annotated.png)
 
 The Agentic Editor (`frontend/live-editor/`) is the main working surface. It has three
 tabs:

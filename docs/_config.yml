@@ -1,0 +1,14 @@
+title: PESU Curriculum Automation
+description: Automate PES University's B.Tech curriculum management
+theme: jekyll-theme-cayman
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+plugins:
+  - jekyll-seo-tag
+exclude:
+  - node_modules
+  - vendor
+include:
+  - assets
