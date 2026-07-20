@@ -118,7 +118,7 @@
   {% if early.count %}
     <article class="summary-page">
       <header class="letterhead">
-        <img class="seal" src="{{ asset_root | default('') }}images/image2.png" alt="PES University logo" />
+        <img class="seal" src="{{ pes_logo }}" alt="PES University logo" />
         <span class="wordmark">Computer Science and Engineering</span>
       </header>
       {% for summary_semester in [1, 2] %}
@@ -141,7 +141,7 @@
       {% if current.count %}
         <article class="summary-page">
           <header class="letterhead">
-            <img class="seal" src="{{ asset_root | default('') }}images/image2.png" alt="PES University logo" />
+            <img class="seal" src="{{ pes_logo }}" alt="PES University logo" />
             <span class="wordmark">Computer Science and Engineering</span>
           </header>
           {{ regular_table(summary_semester, true) }}
@@ -162,7 +162,7 @@
   {% if final.count %}
     <article class="summary-page final-year-summary">
       <header class="letterhead">
-        <img class="seal" src="{{ asset_root | default('') }}images/image2.png" alt="PES University logo" />
+        <img class="seal" src="{{ pes_logo }}" alt="PES University logo" />
         <span class="wordmark">Computer Science and Engineering</span>
       </header>
 

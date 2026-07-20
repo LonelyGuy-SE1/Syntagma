@@ -1,3 +1,4 @@
+import base64
 import re
 from pathlib import Path
 
@@ -20,6 +21,15 @@ def _find_frontend_dir() -> Path:
     if result is None:
         raise RuntimeError("Frontend directory not found; cannot resolve image assets for PDF rendering")
     return result
+
+
+def _load_pes_logo() -> str:
+    frontend = _find_frontend_dir()
+    logo_path = frontend / "images" / "image2.png"
+    if logo_path.exists():
+        b64 = base64.b64encode(logo_path.read_bytes()).decode()
+        return f"data:image/png;base64,{b64}"
+    return ""
 
 
 FRONTEND_DIR = _find_frontend_dir()
@@ -84,3 +94,5 @@ SEMESTER_NAMES = {
     "8": "VIII",
 }
 templates.globals["SEMESTER_NAMES"] = SEMESTER_NAMES
+
+templates.globals["pes_logo"] = _load_pes_logo()

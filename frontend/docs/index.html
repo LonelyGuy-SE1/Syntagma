@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="../images/SE1128.png" />
+    <title>Documentation - Syntagma</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <link rel="stylesheet" href="docs.css" />
+    <script src="/shared/auth-guard.js"></script>
+  </head>
+  <body>
+    <header class="docs-toolbar">
+      <a href="/" class="home-btn" title="Home">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </a>
+      <span class="docs-toolbar-title">Syntagma</span>
+      <span class="docs-toolbar-sep"></span>
+      <span class="docs-toolbar-subtitle">Documentation</span>
+    </header>
+
+    <div class="docs-layout">
+      <aside class="docs-sidebar">
+        <nav class="docs-sidebar-nav">
+          <div class="docs-sidebar-heading">Contents</div>
+          <a class="docs-sidebar-link active" onclick="showSection('overview', this)" href="#overview">Overview</a>
+          <a class="docs-sidebar-link" onclick="showSection('arch', this)" href="#arch">Architecture</a>
+          <a class="docs-sidebar-link" onclick="showSection('how', this)" href="#how">How It Works</a>
+          <a class="docs-sidebar-link" onclick="showSection('backend', this)" href="#backend">Backend Internals</a>
+          <a class="docs-sidebar-link" onclick="showSection('api', this)" href="#api">API Reference</a>
+          <a class="docs-sidebar-link" onclick="showSection('db', this)" href="#db">Database Schema</a>
+          <a class="docs-sidebar-link" onclick="showSection('env', this)" href="#env">Environment</a>
+          <a class="docs-sidebar-link" onclick="showSection('deploy', this)" href="#deploy">Deployment</a>
+        </nav>
+      </aside>
+
+      <main class="docs-content">
+
+        <!-- ==================== OVERVIEW ==================== -->
+        <div class="docs-section active" id="overview">
+          <div class="docs-card">
+            <h1>Syntagma</h1>
+            <p style="color: var(--muted-foreground); margin-bottom: 24px;">An Agentic Curriculum Lifecycle Management System for PES University</p>
+
+            <p>Syntagma is a FastAPI + static-frontend application that collects course submissions from faculty, refines them into curriculum-ready records with an LLM, renders the entire syllabus as HTML/PDF, lets an assistant agent propose and apply reviewable edits, and preserves named curriculum snapshots (versions).</p>
+
+            <p>It is built for a real, fast-changing syllabus: PESU revamps course content nearly every academic year, so nothing about the produced document is hardcoded. Course data, elective categorization, and specialization brackets all live in the database and are rendered dynamically.</p>
+
+            <p><strong>Live Demo:</strong> <a href="https://syntagma.lonelyguy.tech" target="_blank">syntagma.lonelyguy.tech</a> (preferred) | Backup: <a href="https://pesucurriculum.vercel.app" target="_blank">pesucurriculum.vercel.app</a></p>
+
+            <img src="images/auth_page.png" alt="Sign In" loading="lazy" />
+            <img src="images/home_page.png" alt="Dashboard" loading="lazy" />
+
+            <h2>Features</h2>
+            <ul>
+              <li>Course submission with auto-parsed course codes (semester, department, credits extracted automatically)</li>
+              <li>AI refinement that preserves all syllabus topics, only cleans and structures content</li>
+              <li>Full curriculum PDFs in PES University's official A4 format with letterhead</li>
+              <li>Agentic Editor with AI assistant (SSE streaming, 35 tools, draft review, attachments)</li>
+              <li>Reviewable drafts (agent never auto-applies changes)</li>
+              <li>Agent retry with fallback model (Fibonacci backoff on 502/503, automatic model switch)</li>
+              <li>Chat persistence (messages, tool calls, and results saved to database)</li>
+              <li>Dynamic specialization management (DB-driven tracks, not hardcoded)</li>
+              <li>Version snapshots with restore, revision history, and version-vs-version comparison</li>
+              <li>Course visibility toggle and credit-based sorting</li>
+              <li>Dual cache layer (Redis + in-memory, lazy invalidation)</li>
+              <li>Authentication via Supabase Auth</li>
+            </ul>
+
+            <h2>Tech Stack</h2>
+            <table>
+              <thead>
+                <tr><th>Component</th><th>Technology</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Backend framework</td><td>FastAPI 0.138 + Uvicorn</td><td>ASGI server, routing, validation</td></tr>
+                <tr><td>Language</td><td>Python 3.12</td><td>Runtime</td></tr>
+                <tr><td>Frontend</td><td>Vanilla HTML/CSS/JS</td><td>No build step, served as static files</td></tr>
+                <tr><td>Database</td><td>Supabase (PostgreSQL)</td><td>Persistent storage for all data</td></tr>
+                <tr><td>Cache</td><td>Upstash Redis (optional)</td><td>Serverless Redis; falls back to in-memory dict</td></tr>
+                <tr><td>LLM provider</td><td>OpenRouter</td><td>Streaming + tool calling, fallback model retry</td></tr>
+                <tr><td>PDF engine</td><td>WeasyPrint</td><td>A4 curriculum PDFs from Jinja2 HTML</td></tr>
+                <tr><td>Templating</td><td>Jinja2</td><td>Curriculum layout, course pages, diffs</td></tr>
+                <tr><td>HTTP client</td><td>httpx</td><td>Async requests to OpenRouter and external URLs</td></tr>
+                <tr><td>Spreadsheet parsing</td><td>openpyxl</td><td>Reading uploaded .xlsx files for text extraction</td></tr>
+                <tr><td>Markdown rendering</td><td>marked.js (CDN)</td><td>Agent chat message rendering in browser</td></tr>
+                <tr><td>HTML sanitization</td><td>DOMPurify (CDN)</td><td>Sanitizing agent-generated HTML</td></tr>
+                <tr><td>PDF text extraction</td><td>poppler-utils (pdftotext)</td><td>Extracting text from uploaded PDF attachments</td></tr>
+                <tr><td>Auth</td><td>Supabase Auth (JWT)</td><td>Browser-based authentication</td></tr>
+                <tr><td>Error tracking</td><td>Sentry SDK (optional)</td><td>Production error monitoring</td></tr>
+                <tr><td>Deployment</td><td>Docker on HF Spaces</td><td>Backend at port 7860</td></tr>
+                <tr><td>Frontend deploy</td><td>Vercel</td><td>Static hosting with /api rewrite to backend</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Quick Start</h2>
+<pre><code>python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cd backend &amp;&amp; fastapi dev app/main.py</code></pre>
+            <p>Server at <code>http://127.0.0.1:8000</code>. API under <code>/api</code>. Frontend served from <code>frontend/</code>.</p>
+
+<pre><code>source .venv/bin/activate
+pytest                              # 229 tests
+python -m compileall backend/app    # also runs in CI</code></pre>
+          </div>
+        </div>
+
+        <!-- ==================== ARCHITECTURE ==================== -->
+        <div class="docs-section" id="arch">
+          <div class="docs-card">
+            <h1>Architecture</h1>
+
+            <div class="mermaid">
+flowchart TB
+    subgraph Frontend["Frontend (Vanilla HTML/CSS/JS)"]
+        Auth["/auth/ Sign In"]
+        Dashboard["/ Dashboard"]
+        Form["/form/ Course Submission"]
+        Courses["/courses/ Course Management"]
+        Preview["/preview/ PDF Preview"]
+        Editor["/live-editor/ Agentic Editor"]
+        Versions["/versions/ Version History"]
+    end
+
+    subgraph Backend["FastAPI Backend (/api)"]
+        direction TB
+        SubAPI["Submissions"]
+        CoursesAPI["Courses"]
+        PreviewAPI["Preview (8 endpoints)"]
+        AgentAPI["Agent (13 endpoints)"]
+        ChatAPI["Chat (SSE streaming)"]
+        VersionsAPI["Versions (10 endpoints)"]
+    end
+
+    subgraph Services["Services Layer"]
+        Refinement["Refinement - LLM content extraction"]
+        AgentTools["Agent Tools - 35 tools"]
+        Diffing["Diffing - protected field validation"]
+        Curriculum["Curriculum - sorting, snapshots"]
+        PreviewSvc["Preview - build_course_preview"]
+        Rendering["Rendering - Jinja2 + WeasyPrint"]
+        Cache["Cache - Redis + in-memory"]
+    end
+
+    subgraph External["External Services"]
+        LLM["OpenRouter - Primary + Fallback"]
+        Redis[("Upstash Redis")]
+        Supa[(Supabase Postgres)]
+        WeasyPrint["WeasyPrint - A4 PDF"]
+    end
+
+    Auth -->|"JWT"| Dashboard
+    Dashboard --> Form &amp; Courses &amp; Preview &amp; Editor &amp; Versions
+
+    Form -->|"POST /submissions"| SubAPI
+    SubAPI --> Refinement
+    Refinement -->|"extract content"| LLM
+    Refinement -->|"store"| Supa
+
+    Courses --> CoursesAPI
+    CoursesAPI --> Cache
+    Cache -.->|"miss"| Supa
+
+    Preview --> PreviewAPI
+    PreviewAPI --> PreviewSvc
+    PreviewSvc --> Rendering
+    Rendering --> WeasyPrint
+
+    Editor -->|"SSE"| ChatAPI
+    ChatAPI --> LLM
+    LLM -->|"tool calls"| AgentTools
+    AgentTools --> Supa
+    ChatAPI -->|"save"| Supa
+
+    VersionsAPI --> Curriculum
+    Curriculum -->|"snapshot"| Supa
+
+    Editor -->|"review/apply"| AgentAPI
+    AgentAPI --> Diffing
+    Diffing -->|"validate"| Supa
+
+    Cache -.-> Redis
+            </div>
+
+            <h2>Layer Responsibilities</h2>
+            <table>
+              <thead>
+                <tr><th>Layer</th><th>Location</th><th>Responsibility</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Static frontend</td><td>frontend/</td><td>Course entry, course management, PDF preview, agentic editor, version history</td></tr>
+                <tr><td>API backend</td><td>backend/app/</td><td>FastAPI routes, validation, refinement, previews, drafts, chat, snapshots</td></tr>
+                <tr><td>Services</td><td>backend/app/services/</td><td>Business logic, LLM integration, caching, diffing, tool dispatch</td></tr>
+                <tr><td>Persistence</td><td>Supabase Postgres</td><td>Raw submissions, refined courses, agent drafts, chat history, attachments, curriculum versions</td></tr>
+                <tr><td>Cache</td><td>Redis + in-memory</td><td>Course lists, version lists, PDFs, with lazy invalidation</td></tr>
+                <tr><td>Rendering</td><td>Jinja2 + WeasyPrint</td><td>Curriculum summary pages, course detail pages, PDF exports</td></tr>
+                <tr><td>Model provider</td><td>OpenRouter</td><td>Submission refinement and live-editor chat with tool calls + fallback model retry</td></tr>
+                <tr><td>Auth</td><td>Supabase Auth (JWT)</td><td>Browser-based authentication with token verification</td></tr>
+                <tr><td>Monitoring</td><td>Sentry SDK</td><td>Optional production error tracking</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Backend Project Structure</h2>
+            <table>
+              <thead>
+                <tr><th>Path</th><th>Responsibility</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>main.py</td><td>FastAPI app, CORS, Supabase/.env loading, mounts /api routers and the static frontend</td></tr>
+                <tr><td>api.py</td><td>Aggregates all route routers under a single /api router</td></tr>
+                <tr><td>supabase.py</td><td>Supabase client + first_row() helper</td></tr>
+                <tr><td>cache.py</td><td>Dual cache (Redis + in-memory), lazy invalidation, prefix-based deletion</td></tr>
+                <tr><td>models/submission.py</td><td>CourseSubmission (request contract) and parse_course_code()</td></tr>
+                <tr><td>services/deterministic.py</td><td>compute_hours, compute_program, compute_course_type from credit category</td></tr>
+                <tr><td>services/refinement.py</td><td>The LLM refinement pipeline (refine)</td></tr>
+                <tr><td>services/curriculum.py</td><td>Sorting, ordering, version snapshots, draft records, field updates</td></tr>
+                <tr><td>services/diffing.py</td><td>JSON diff, protected-field validation, patch apply/merge</td></tr>
+                <tr><td>services/preview.py</td><td>build_course_preview, build_specialization_context</td></tr>
+                <tr><td>services/rendering.py</td><td>Jinja2 environment, filters, SEMESTER_NAMES global</td></tr>
+                <tr><td>services/agent_tools.py</td><td>Agent tool definitions + TOOLS registry (35 tools) + call_tool</td></tr>
+                <tr><td>services/openrouter.py</td><td>call() (one-shot), stream_chat() (tool-calling loop), fallback model retry</td></tr>
+                <tr><td>services/schema.py</td><td>REQUIRED_TABLES and schema_status()</td></tr>
+                <tr><td>services/errors.py</td><td>database_http_exception()</td></tr>
+                <tr><td>services/attachments.py</td><td>Text extraction from PDF/DOCX/XLSX/TXT</td></tr>
+                <tr><td>services/books.py</td><td>parse_books() textbook parser</td></tr>
+                <tr><td>services/elective_categorization.py</td><td>AI-powered elective-to-track matching</td></tr>
+                <tr><td>routes/health.py</td><td>GET /api/health/schema</td></tr>
+                <tr><td>routes/submissions.py</td><td>POST /api/submissions, POST /api/submissions/{id}/refine</td></tr>
+                <tr><td>routes/preview.py</td><td>Course/HTML/PDF preview endpoints (8 endpoints)</td></tr>
+                <tr><td>routes/refined.py</td><td>GET/PATCH a single refined course</td></tr>
+                <tr><td>routes/courses.py</td><td>List + toggle visibility + soft-delete refined courses</td></tr>
+                <tr><td>routes/agent.py</td><td>Draft + document-draft + tool endpoints (13 endpoints)</td></tr>
+                <tr><td>routes/chat.py</td><td>Chat sessions, SSE streaming, attachments, system prompt</td></tr>
+                <tr><td>routes/versions.py</td><td>Version CRUD, restore, previews, diffs (10 endpoints)</td></tr>
+                <tr><td>routes/auth.py</td><td>Token verification, logout</td></tr>
+                <tr><td>templates/jinja_sample.html</td><td>Single course + full document renderer + title page</td></tr>
+                <tr><td>templates/jinja_program.html</td><td>Program-level title page (large seal) + PEOs/POs</td></tr>
+                <tr><td>templates/jinja_1_to_8.html</td><td>Semester summary tables (1-4, 7-8)</td></tr>
+                <tr><td>templates/jinja_sem_5_6.html</td><td>Semester 5/6 electives + specialization tables</td></tr>
+                <tr><td>templates/jinja_diff.html</td><td>Structured diff renderer for drafts</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Frontend Project Structure</h2>
+            <table>
+              <thead>
+                <tr><th>Path</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>index.html</td><td>Dashboard hub linking to all surfaces</td></tr>
+                <tr><td>form/</td><td>Raw course submission form with course code parsing</td></tr>
+                <tr><td>courses/</td><td>Refined course list with filtering, visibility toggle, soft delete</td></tr>
+                <tr><td>preview/</td><td>Overall or per-semester PDF preview/download</td></tr>
+                <tr><td>live-editor/</td><td>Agentic Editor: course preview, chat assistant, JSON editor, draft review, version restore</td></tr>
+                <tr><td>versions/</td><td>Snapshot list, preview, comparison, editor handoff</td></tr>
+                <tr><td>auth/</td><td>Sign in (Supabase Auth)</td></tr>
+                <tr><td>shared/</td><td>auth-guard.js, supabase-client.js, shared.css, dialog.js</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+                <!-- ==================== HOW IT WORKS ==================== -->
+        <div class="docs-section" id="how">
+          <div class="docs-card">
+            <h1>How It Works</h1>
+            <p>Syntagma has six surfaces. Each serves a purpose in the curriculum lifecycle.</p>
+
+            <h2>Authentication</h2>
+            <img src="images/auth_page.png" alt="Sign In" loading="lazy" />
+            <p>Supabase Auth with email/password. JWT verified on every API call. The <code>shared/auth-guard.js</code> script redirects unauthenticated users to <code>/auth/</code>.</p>
+
+            <h2>Dashboard</h2>
+            <img src="images/home_page.png" alt="Dashboard" loading="lazy" />
+            <p>Quick links to all surfaces: Submission Form, Courses, Preview, Live Editor, Versions, and Documentation.</p>
+
+            <h2>Submission Form</h2>
+            <img src="images/submit_course_page.png" alt="Course Submission Form" loading="lazy" />
+            <p>Faculty enter raw course data. Course codes are auto-parsed: semester, department, credits, and course type extracted from the code. Background refinement kicks in immediately after submission. Alternatively, course details can be sent as attachments in the agent chat, where the agent creates a refined course directly using <code>create_refined_course</code>.</p>
+
+            <h2>Courses</h2>
+            <img src="images/courses_default.png" alt="Courses Page" loading="lazy" />
+            <img src="images/courses_filtered_visible_toggle.png" alt="Filtered Courses" loading="lazy" />
+            <img src="images/courses_delete_modal.png" alt="Delete Modal" loading="lazy" />
+            <p>Lists all refined courses. Filter by semester or department. Toggle visibility (hidden courses are excluded from previews and PDFs). Delete with confirmation modal.</p>
+
+            <h2>Preview</h2>
+            <img src="images/preview_single_course.png" alt="Single Course Preview" loading="lazy" />
+            <img src="images/preview_full_doc.png" alt="Full Document Preview" loading="lazy" />
+            <img src="images/preview_full_sem.png" alt="Semester Preview" loading="lazy" />
+            <p>Three view modes: single course, full document, or per-semester. PDFs generated via WeasyPrint in PES University's A4 format with letterhead.</p>
+
+            <h2>Agentic Editor</h2>
+            <img src="images/editor_single_course.png" alt="Agentic Editor" loading="lazy" />
+            <img src="images/editor_sample_1.png" alt="Editor with Chat" loading="lazy" />
+            <img src="images/editor_sample_annotated.png" alt="Editor Annotated" loading="lazy" />
+            <p>Two-column workspace. Left: preview iframe (single course or full document). Right: tabbed panel.</p>
+            <table>
+              <thead>
+                <tr><th>Tab</th><th>What it does</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Agent</td><td>AI assistant via SSE streaming. 35 tools. Creates reviewable drafts, never auto-applies. Thread management with rename/delete. File attachments supported.</td></tr>
+                <tr><td>Fields</td><td>Raw JSON editor. "Propose Changes" creates a reviewable draft. "Save" directly updates (non-protected fields only).</td></tr>
+                <tr><td>Review</td><td>Loads pending drafts (new courses, single-course, multi-course). Shows diff. Apply or reject.</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Versions</h2>
+            <img src="images/versions_default.png" alt="Versions Page" loading="lazy" />
+            <img src="images/versions_current_document.png" alt="Current Document" loading="lazy" />
+            <img src="images/versions_annotated_comparision.png" alt="Version Comparison" loading="lazy" />
+            <img src="images/versions_rename_category.png" alt="Rename Category" loading="lazy" />
+            <p>Named snapshots of the entire curriculum. "Current" at top of sidebar represents live state. Preview any snapshot, compare two versions, or restore a previous state. Restore archives absent courses and resets applied drafts.</p>
+          </div>
+        </div>
+
+        <!-- ==================== BACKEND INTERNALS ==================== -->
+        <div class="docs-section" id="backend">
+          <div class="docs-card">
+            <h1>Backend Internals</h1>
+
+            <h2>Submission Pipeline</h2>
+            <table>
+              <thead>
+                <tr><th>Step</th><th>What happens</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>1</td><td><code>POST /api/submissions</code> validates payload against <code>CourseSubmission</code></td></tr>
+                <tr><td>2</td><td><code>parse_course_code()</code> derives <code>offering_department</code>, <code>target_department</code>, <code>semester</code>, <code>credit_category</code></td></tr>
+                <tr><td>3</td><td>Inserts into <code>submissions</code>, queues background refinement</td></tr>
+                <tr><td>4</td><td><code>refine(submission_id)</code> builds deterministic fields, calls OpenRouter, upserts <code>refined_submissions</code></td></tr>
+                <tr><td>5</td><td>Course visible in <code>/api/courses</code>, previews, and editor</td></tr>
+              </tbody>
+            </table>
+            <p>Alternative path: course details sent as chat attachments can be used by the agent to create a refined course directly via <code>create_refined_course</code>, bypassing the submission/refinement pipeline.</p>
+
+            <h2>Course Code Encoding</h2>
+            <p><code>UE</code> + <code>YY</code> (year) + <code>DEPT</code> (2-letter) + <code>NUMBER</code> (3-digit) + <code>SUFFIX</code>.</p>
+            <table>
+              <thead>
+                <tr><th>Digit</th><th>Meaning</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Tens</td><td>Credits (0/2/4/5)</td></tr>
+                <tr><td>Hundreds</td><td>Semester group</td></tr>
+                <tr><td>Suffix A/B</td><td>Odd/even semester parity</td></tr>
+              </tbody>
+            </table>
+            <p><code>parse_course_code()</code> in <code>models/submission.py</code> is the single source of truth.</p>
+
+            <h2>Deterministic Fields</h2>
+            <p>Computed from <code>credit_category</code> by <code>services/deterministic.py</code>. Protected from casual edits.</p>
+            <table>
+              <thead>
+                <tr><th>Category</th><th>L</th><th>T</th><th>P</th><th>S</th><th>C</th><th>Course type</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>5</td><td>4</td><td>0</td><td>2</td><td>5</td><td>5</td><td>Core Course-Lab Integrated</td></tr>
+                <tr><td>4</td><td>4</td><td>0</td><td>0</td><td>4</td><td>4</td><td>Core Course</td></tr>
+                <tr><td>2</td><td>2</td><td>0</td><td>0</td><td>2</td><td>2</td><td>Core Theory</td></tr>
+                <tr><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>Foundation Course</td></tr>
+              </tbody>
+            </table>
+            <p><strong>Protected fields</strong> (<code>diffing.py</code>): <code>program</code>, <code>lecture_hours</code>, <code>tutorial_hours</code>, <code>practical_hours</code>, <code>self_study</code>, <code>credits</code>, <code>course_type</code>. Drafts that change them are blocked.</p>
+
+            <h2>Preview &amp; PDF Generation</h2>
+            <p><code>build_course_preview(row)</code> converts a <code>refined_submissions</code> row into a flat dict for templates. <code>services/rendering.py</code> builds the Jinja2 environment.</p>
+            <table>
+              <thead>
+                <tr><th>Template</th><th>Renders</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>jinja_program.html</code></td><td>Title page (PES seal, program name, year) and PEOs/POs</td></tr>
+                <tr><td><code>jinja_sample.html</code></td><td>Individual course pages and summary tables</td></tr>
+                <tr><td><code>jinja_1_to_8.html</code></td><td>Semester summary tables (1-4, 7-8)</td></tr>
+                <tr><td><code>jinja_sem_5_6.html</code></td><td>Electives and specialization tables (5/6)</td></tr>
+                <tr><td><code>jinja_diff.html</code></td><td>Structured diffs for agent drafts</td></tr>
+              </tbody>
+            </table>
+            <p>WeasyPrint converts rendered HTML to PDF. PDFs cached 60s. Course lists and version lists cached 180s.</p>
+
+            <h2>Specialization System</h2>
+            <p>Fully data-driven. No hardcoded specialization brackets.</p>
+            <table>
+              <thead>
+                <tr><th>Table</th><th>Schema</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>specialization_definitions</code></td><td>One row per track: id, semester, letter, name, key, academic_year</td></tr>
+                <tr><td><code>course_specialization_assignments</code></td><td>One row per (course, track): id, refined_id, specialization_id</td></tr>
+                <tr><td><code>refined_submissions.is_elective</code></td><td>Boolean flag</td></tr>
+              </tbody>
+            </table>
+            <p><code>build_specialization_context()</code> loads tracks and assignments. Template excludes electives from regular tables, splits by code suffix (AA/BA -> group A), renders specialization assignment tables.</p>
+            <p>Agent tools: <code>define_specialization</code>, <code>list_specializations</code>, <code>assign_elective_to_tracks</code>, <code>remove_elective_from_tracks</code>, <code>categorize_elective</code>.</p>
+
+            <h2>Agent System</h2>
+            <p>Tool-calling LLM loop via <code>openrouter.stream_chat</code>. System prompt in <code>chat.py:chat_system_prompt</code>.</p>
+            <table>
+              <thead>
+                <tr><th>Component</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Curriculum structure context</td><td>Semester ranges, course code encoding, credit categories</td></tr>
+                <tr><td>Draft vs. direct creation guidelines</td><td>When to draft vs. create directly</td></tr>
+                <tr><td>Desirable knowledge guidance</td><td>How to handle prerequisite knowledge fields</td></tr>
+                <tr><td>Agent acknowledgement instruction</td><td>Brief text before tool calls</td></tr>
+                <tr><td><code>update_agent_draft</code> tool mention</td><td>Modifying existing drafts</td></tr>
+              </tbody>
+            </table>
+
+            <h3>Agent Tools (35 total)</h3>
+            <table>
+              <thead>
+                <tr><th>Tool</th><th>Category</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>get_current_course_json</code></td><td>Read</td><td>Full template-ready course JSON</td></tr>
+                <tr><td><code>get_course_codes</code></td><td>Read</td><td>Lightweight IDs (refined_id, code, title, semester)</td></tr>
+                <tr><td><code>get_course_syllabus</code></td><td>Read</td><td>Units, objectives, course_outcomes</td></tr>
+                <tr><td><code>get_course_textbooks</code></td><td>Read</td><td>text_books, reference_books</td></tr>
+                <tr><td><code>get_course_deterministic</code></td><td>Read</td><td>Protected fields (read-only context)</td></tr>
+                <tr><td><code>get_course_lab</code></td><td>Read</td><td>Lab experiments, tools/languages</td></tr>
+                <tr><td><code>get_course_fields</code></td><td>Read</td><td>Arbitrary field subset for one course</td></tr>
+                <tr><td><code>batch_read_courses</code></td><td>Read</td><td>Read specific fields from multiple courses in one call</td></tr>
+                <tr><td><code>get_curriculum_json</code></td><td>Read</td><td>Full curriculum, optionally by semester</td></tr>
+                <tr><td><code>list_courses</code></td><td>Read</td><td>Course IDs/titles, optionally by semester</td></tr>
+                <tr><td><code>get_curriculum_stats</code></td><td>Read</td><td>Aggregate statistics (total courses, credits per semester, course type distribution)</td></tr>
+                <tr><td><code>diff_course_json</code></td><td>Read</td><td>Compare two course JSONs</td></tr>
+                <tr><td><code>get_course_draft</code></td><td>Read</td><td>Read a staged course draft</td></tr>
+                <tr><td><code>get_document_draft</code></td><td>Read</td><td>Read a staged document draft</td></tr>
+                <tr><td><code>get_version</code></td><td>Read</td><td>Load a curriculum version snapshot with its course list</td></tr>
+                <tr><td><code>diff_versions</code></td><td>Read</td><td>Compare two version snapshots (added/removed/changed courses)</td></tr>
+                <tr><td><code>get_course_assignments</code></td><td>Read</td><td>Which specialization tracks a course belongs to</td></tr>
+                <tr><td><code>list_specializations</code></td><td>Read</td><td>List track definitions</td></tr>
+                <tr><td><code>get_attachment_text</code></td><td>Read</td><td>Read uploaded chat attachments</td></tr>
+                <tr><td><code>fetch_url</code></td><td>Read</td><td>Fetch external URL content</td></tr>
+                <tr><td><code>web_search</code></td><td>Read</td><td>Search the web for external context</td></tr>
+                <tr><td><code>create_course_draft</code></td><td>Write</td><td>Propose changes for a single course (reviewable draft)</td></tr>
+                <tr><td><code>update_agent_draft</code></td><td>Write</td><td>Merge fields into an existing draft (avoids duplicates)</td></tr>
+                <tr><td><code>create_document_draft</code></td><td>Write</td><td>Propose changes for multiple courses (reviewable draft)</td></tr>
+                <tr><td><code>assign_elective_to_tracks</code></td><td>Write</td><td>Categorize an elective into specialization tracks</td></tr>
+                <tr><td><code>remove_elective_from_tracks</code></td><td>Write</td><td>Remove a course from specialization tracks</td></tr>
+                <tr><td><code>define_specialization</code></td><td>Write</td><td>Create a new specialization track</td></tr>
+                <tr><td><code>categorize_elective</code></td><td>Write</td><td>AI-powered elective categorization into existing tracks</td></tr>
+                <tr><td><code>update_deterministic_fields</code></td><td>Write</td><td>Change protected fields; produces a blocked draft requiring explicit user approval</td></tr>
+                <tr><td><code>create_refined_course</code></td><td>Write</td><td>Create new courses directly (for brand-new courses only)</td></tr>
+                <tr><td><code>create_spreadsheet</code></td><td>Generate</td><td>Generate CSV or Excel (.xlsx) files from structured row data</td></tr>
+                <tr><td><code>create_report</code></td><td>Generate</td><td>Generate markdown or PDF reports</td></tr>
+                <tr><td><code>create_curriculum_version</code></td><td>Generate</td><td>Snapshot the current curriculum state</td></tr>
+                <tr><td><code>signal_done</code></td><td>Control</td><td>Signal task completion with a summary</td></tr>
+              </tbody>
+            </table>
+
+            <h3>SSE Event Types</h3>
+            <p>Streamed from <code>POST /chat/sessions/{id}/messages</code>:</p>
+            <table>
+              <thead>
+                <tr><th>Event</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>status</code></td><td>Status updates (model name, tool execution)</td></tr>
+                <tr><td><code>token</code></td><td>Streamed text tokens from the LLM</td></tr>
+                <tr><td><code>tool_call</code></td><td>Agent invoking a tool (name + arguments)</td></tr>
+                <tr><td><code>tool_result</code></td><td>Tool execution result</td></tr>
+                <tr><td><code>draft</code></td><td>A course draft was created</td></tr>
+                <tr><td><code>document_draft</code></td><td>A document draft was created</td></tr>
+                <tr><td><code>refined_course</code></td><td>A new course was created directly</td></tr>
+                <tr><td><code>context_usage</code></td><td>Token usage statistics</td></tr>
+                <tr><td><code>error</code></td><td>Error occurred</td></tr>
+                <tr><td><code>done</code></td><td>Stream complete</td></tr>
+              </tbody>
+            </table>
+
+            <h3>Chat Persistence</h3>
+            <p>All messages (user, assistant, tool_call, tool_result) saved to <code>chat_messages</code> with role and metadata. Tool calls include function name and arguments; tool results include output. Conversation history persists across page refreshes.</p>
+
+            <h3>Agent Output Validation</h3>
+            <table>
+              <thead>
+                <tr><th>Validation</th><th>Behavior</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>desirable_knowledge</code></td><td>Placeholder values (e.g., "None specified") stripped by <code>_create_refined_course</code></td></tr>
+                <tr><td>Draft-status courses</td><td><code>_create_course_draft</code> rejects drafts, directs agent to <code>create_refined_course</code></td></tr>
+              </tbody>
+            </table>
+
+            <h2>Versioning</h2>
+            <p><code>create_version_snapshot</code> copies every active <code>refined_submissions</code> into <code>finalized_submissions</code> pinned to a <code>curriculum_versions</code> row. <code>restore</code> overwrites current refined data, archives absent courses, writes revision history.</p>
+
+            <h2>Caching</h2>
+            <p>Dual cache layer (<code>services/cache.py</code>):</p>
+            <table>
+              <thead>
+                <tr><th>Backend</th><th>Config</th><th>Behavior</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Redis (Upstash, optional)</td><td><code>REDIS_URL</code></td><td>Survives server restarts</td></tr>
+                <tr><td>In-memory dict</td><td>Fallback</td><td>Survives within a process</td></tr>
+              </tbody>
+            </table>
+            <table>
+              <thead>
+                <tr><th>Prefix</th><th>TTL</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>courses_list</code></td><td>180s</td><td>Course list for /api/courses</td></tr>
+                <tr><td><code>course_pdf:</code></td><td>60s</td><td>Individual course PDF bytes</td></tr>
+                <tr><td><code>version_list</code></td><td>180s</td><td>Version list for /api/versions</td></tr>
+              </tbody>
+            </table>
+            <p>Invalidation: lazy (delete-on-write). Prewarm on startup. Debug: set <code>is_cache_disabled = True</code> in <code>cache.py</code>.</p>
+
+            <h2>Error Handling &amp; Retry</h2>
+            <p>OpenRouter client (<code>services/openrouter.py</code>):</p>
+            <table>
+              <thead>
+                <tr><th>Parameter</th><th>Value</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Retryable statuses</td><td>502, 503 (server errors)</td></tr>
+                <tr><td>Retryable exceptions</td><td><code>httpx.TimeoutException</code>, <code>httpx.TransportError</code></td></tr>
+                <tr><td>NOT retried</td><td>429 (rate limit) - shows error and stops immediately</td></tr>
+                <tr><td>Backoff</td><td>Fibonacci sequence [1, 1, 2, 3, 5, 8, 13] seconds with +/-25% jitter</td></tr>
+                <tr><td>Max retries</td><td>3 per request</td></tr>
+                <tr><td>Retry-After header</td><td>Respected when present</td></tr>
+              </tbody>
+            </table>
+            <p><strong>Fallback model:</strong></p>
+            <table>
+              <thead>
+                <tr><th>Parameter</th><th>Behavior</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>OPENROUTER_FALLBACK_MODEL</code></td><td>Set env var to enable (e.g. <code>google/gemma-3-27b-it:free</code>)</td></tr>
+                <tr><td>Trigger</td><td>After 3 failed retries on the primary model</td></tr>
+                <tr><td>Scope</td><td>Commits to fallback for the rest of the chat thread</td></tr>
+                <tr><td>Notification</td><td>Announced via SSE status events so the UI can inform the user</td></tr>
+                <tr><td>Persistence</td><td>Once committed, <code>active_model</code> persists as the fallback for all subsequent calls</td></tr>
+              </tbody>
+            </table>
+            <p><strong>429 (rate limit):</strong> No retry, no fallback. Error shown in chat and status bar. User must wait and retry manually.</p>
+            <p><strong>Chat streaming errors:</strong> Surfaced as SSE error events. UI creates error bubble even when no tokens received. Done handler reloads messages from database.</p>
+          </div>
+        </div>
+
+<!-- ==================== API REFERENCE ==================== -->
+        <div class="docs-section" id="api">
+          <div class="docs-card">
+            <h1>API Reference</h1>
+            <p>All paths are prefixed with <code>/api</code> at runtime.</p>
+
+            <h2>Health</h2>
+            <table>
+              <thead>
+                <tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>/api/health/schema</code></td><td><span class="method-badge method-get">GET</span></td><td>Verify required Supabase tables exist. Returns 503 if tables are missing.</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Submissions</h2>
+            <table>
+              <thead>
+                <tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>/api/submissions</code></td><td><span class="method-badge method-post">POST</span></td><td>Store a raw submission, queue background refinement. Body: CourseSubmission.</td></tr>
+                <tr><td><code>/api/submissions/{id}/refine</code></td><td><span class="method-badge method-post">POST</span></td><td>Manually trigger refinement for an existing submission.</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Refined Courses</h2>
+            <table>
+              <thead>
+                <tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>/api/refined/{refined_id}</code></td><td><span class="method-badge method-get">GET</span></td><td>Read template-ready course fields.</td></tr>
+                <tr><td><code>/api/refined/{refined_id}</code></td><td><span class="method-badge method-patch">PATCH</span></td><td>Update editable refined fields. Promotes draft-status courses to refined. Body: { fields: dict }.</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Course Management</h2>
+            <table>
+              <thead>
+                <tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>/api/courses</code></td><td><span class="method-badge method-get">GET</span></td><td>List active refined courses (cached 180s).</td></tr>
+                <tr><td><code>/api/courses/{refined_id}/visible</code></td><td><span class="method-badge method-patch">PATCH</span></td><td>Toggle course visibility. Body: { visible: bool }.</td></tr>
+                <tr><td><code>/api/courses/{refined_id}</code></td><td><span class="method-badge method-delete">DELETE</span></td><td>Soft-delete (archive) a course.</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Preview &amp; PDF</h2>
+            <table>
+              <thead>
+                <tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>/api/preview/course/{refined_id}</code></td><td><span class="method-badge method-get">GET</span></td><td>Render one course as HTML.</td></tr>
+                <tr><td><code>/api/preview/course/{refined_id}/pdf</code></td><td><span class="method-badge method-get">GET</span></td><td>Generate PDF for one course. <code>?download=true</code> for attachment.</td></tr>
+                <tr><td><code>/api/preview/html</code></td><td><span class="method-badge method-get">GET</span></td><td>Render full curriculum as HTML.</td></tr>
+                <tr><td><code>/api/preview/pdf</code></td><td><span class="method-badge method-get">GET</span></td><td>Generate full curriculum PDF. <code>?download=true</code> for attachment.</td></tr>
+                <tr><td><code>/api/preview/semester/{sem}/pdf</code></td><td><span class="method-badge method-get">GET</span></td><td>Generate one semester as PDF.</td></tr>
+                <tr><td><code>/api/preview/semester/{sem}/courses</code></td><td><span class="method-badge method-get">GET</span></td><td>List course IDs for a semester.</td></tr>
+                <tr><td><code>/api/preview/pending-courses</code></td><td><span class="method-badge method-get">GET</span></td><td>List draft-status (pending) courses.</td></tr>
+                <tr><td><code>/api/preview/courses</code></td><td><span class="method-badge method-get">GET</span></td><td>List all visible refined course IDs.</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Agent Drafts</h2>
+            <table>
+              <thead>
+                <tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>/api/agent/drafts</code></td><td><span class="method-badge method-get">GET</span></td><td>List 100 most recent agent drafts.</td></tr>
+                <tr><td><code>/api/agent/drafts</code></td><td><span class="method-badge method-post">POST</span></td><td>Create a single-course draft. Body: { refined_id, fields, reason? }.</td></tr>
+                <tr><td><code>/api/agent/drafts/{draft_id}</code></td><td><span class="method-badge method-get">GET</span></td><td>Fetch a draft with base/proposed JSON and diff summary.</td></tr>
+                <tr><td><code>/api/agent/drafts/{draft_id}/apply</code></td><td><span class="method-badge method-post">POST</span></td><td>Apply a proposed draft. Rejects blocked drafts or protected-field changes.</td></tr>
+                <tr><td><code>/api/agent/drafts/{draft_id}/preview</code></td><td><span class="method-badge method-get">GET</span></td><td>Render draft as HTML. <code>?diff=true</code> for diff view.</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Document Drafts (multi-course)</h2>
+            <table>
+              <thead>
+                <tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>/api/agent/document-drafts</code></td><td><span class="method-badge method-get">GET</span></td><td>List 100 most recent document drafts.</td></tr>
+                <tr><td><code>/api/agent/document-drafts</code></td><td><span class="method-badge method-post">POST</span></td><td>Create a multi-course draft. Body: { courses: [{ refined_id, fields }], reason? }.</td></tr>
+                <tr><td><code>/api/agent/document-drafts/{id}</code></td><td><span class="method-badge method-get">GET</span></td><td>Fetch document draft with all linked course drafts.</td></tr>
+                <tr><td><code>/api/agent/document-drafts/{id}/apply</code></td><td><span class="method-badge method-post">POST</span></td><td>Apply all proposed sub-drafts.</td></tr>
+                <tr><td><code>/api/agent/document-drafts/{id}/preview</code></td><td><span class="method-badge method-get">GET</span></td><td>Render all proposed courses. <code>?diff=true</code> for diff view.</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Agent Tools &amp; Diff</h2>
+            <table>
+              <thead>
+                <tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>/api/agent/tools</code></td><td><span class="method-badge method-get">GET</span></td><td>List all agent tool schemas (OpenAI function-calling format).</td></tr>
+                <tr><td><code>/api/agent/tools/{tool_name}</code></td><td><span class="method-badge method-post">POST</span></td><td>Execute a tool directly. Body: { arguments: dict }.</td></tr>
+                <tr><td><code>/api/agent/context-length</code></td><td><span class="method-badge method-get">GET</span></td><td>Return current model's context window size.</td></tr>
+                <tr><td><code>/api/agent/diff</code></td><td><span class="method-badge method-post">POST</span></td><td>Compute structured diff between two course JSONs.</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Chat</h2>
+            <table>
+              <thead>
+                <tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>/api/chat/sessions</code></td><td><span class="method-badge method-get">GET</span></td><td>List active sessions. <code>?refined_id=</code> or <code>?document_draft_id=</code> to filter.</td></tr>
+                <tr><td><code>/api/chat/sessions</code></td><td><span class="method-badge method-post">POST</span></td><td>Create a session. Body: { refined_id?, document_draft_id?, title? }.</td></tr>
+                <tr><td><code>/api/chat/sessions/{id}</code></td><td><span class="method-badge method-patch">PATCH</span></td><td>Rename a session. Body: { title }.</td></tr>
+                <tr><td><code>/api/chat/sessions/{id}</code></td><td><span class="method-badge method-delete">DELETE</span></td><td>Soft-archive a session and its messages.</td></tr>
+                <tr><td><code>/api/chat/sessions/{id}/messages</code></td><td><span class="method-badge method-get">GET</span></td><td>Fetch all messages in a session.</td></tr>
+                <tr><td><code>/api/chat/sessions/{id}/messages</code></td><td><span class="method-badge method-post">POST</span></td><td>Send a message and stream response via SSE. Events: status, token, tool_call, tool_result, draft, document_draft, refined_course, context_usage, error, done.</td></tr>
+                <tr><td><code>/api/chat/sessions/{id}/attachments</code></td><td><span class="method-badge method-post">POST</span></td><td>Upload files (multipart/form-data). 10MB/file, 25MB total.</td></tr>
+                <tr><td><code>/api/chat/sessions/{id}/attachments/{att_id}/download</code></td><td><span class="method-badge method-get">GET</span></td><td>Download an attachment.</td></tr>
+                <tr><td><code>/api/chat/sessions/{id}/attachments/{att_id}/preview</code></td><td><span class="method-badge method-get">GET</span></td><td>Preview an attachment inline.</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Versions</h2>
+            <table>
+              <thead>
+                <tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>/api/versions</code></td><td><span class="method-badge method-get">GET</span></td><td>List all curriculum snapshots. Includes course_count and has_changes.</td></tr>
+                <tr><td><code>/api/versions</code></td><td><span class="method-badge method-post">POST</span></td><td>Create a snapshot. Returns 409 if no changes since last version. Body: { name, program?, academic_year?, status? }.</td></tr>
+                <tr><td><code>/api/versions/{version_id}</code></td><td><span class="method-badge method-get">GET</span></td><td>Fetch version with its course list.</td></tr>
+                <tr><td><code>/api/versions/{version_id}</code></td><td><span class="method-badge method-patch">PATCH</span></td><td>Update version metadata. Body: { name?, academic_year?, status? }.</td></tr>
+                <tr><td><code>/api/versions/{version_id}</code></td><td><span class="method-badge method-delete">DELETE</span></td><td>Delete a version and its finalized_submissions.</td></tr>
+                <tr><td><code>/api/versions/{version_id}/restore</code></td><td><span class="method-badge method-post">POST</span></td><td>Restore a snapshot. Archives absent courses. Resets applied drafts.</td></tr>
+                <tr><td><code>/api/versions/{version_id}/courses/{refined_id}</code></td><td><span class="method-badge method-get">GET</span></td><td>Fetch a single course snapshot from a version.</td></tr>
+                <tr><td><code>/api/versions/{version_id}/courses/{refined_id}/preview</code></td><td><span class="method-badge method-get">GET</span></td><td>Render a version course as HTML.</td></tr>
+                <tr><td><code>/api/versions/{version_id}/preview</code></td><td><span class="method-badge method-get">GET</span></td><td>Render all version courses. <code>?diff=true</code> for diff vs current.</td></tr>
+                <tr><td><code>/api/versions/{id1}/diff/{id2}</code></td><td><span class="method-badge method-get">GET</span></td><td>Render side-by-side diff between two versions.</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Auth</h2>
+            <table>
+              <thead>
+                <tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>/api/auth/check</code></td><td><span class="method-badge method-get">GET</span></td><td>Verify the bearer token is valid. Returns user info or 401.</td></tr>
+                <tr><td><code>/api/auth/logout</code></td><td><span class="method-badge method-post">POST</span></td><td>Sign out the current user.</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Query Parameters</h2>
+            <table>
+              <thead>
+                <tr><th>Parameter</th><th>Applies to</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>curriculum_year</code></td><td>All preview/PDF endpoints</td><td>Pin the batch year (e.g. 2025-2026). Falls back to CURRICULUM_YEAR env var.</td></tr>
+                <tr><td><code>download</code></td><td>PDF endpoints</td><td>Set true to trigger Content-Disposition attachment.</td></tr>
+                <tr><td><code>diff</code></td><td>Draft/version preview</td><td>Set true to render diff view instead of proposed content.</td></tr>
+              </tbody>
+            </table>
+
+            <p><strong>Total:</strong> 49 endpoints across 9 route files.</p>
+          </div>
+        </div>
+
+        <!-- ==================== DATABASE SCHEMA ==================== -->
+        <div class="docs-section" id="db">
+          <div class="docs-card">
+            <h1>Database Schema</h1>
+            <p>Run <code>docs/schema.sql</code> in the Supabase SQL editor. Required tables:</p>
+
+            <p><code>submissions</code>, <code>refined_submissions</code>, <code>curriculum_versions</code>, <code>finalized_submissions</code>, <code>agent_drafts</code>, <code>agent_document_drafts</code>, <code>course_revision_history</code>, <code>chat_sessions</code>, <code>chat_messages</code>, <code>chat_attachments</code>, <code>specialization_definitions</code>, <code>course_specialization_assignments</code>.</p>
+
+            <h2>Course Status Lifecycle</h2>
+<pre><code>submissions.status:    pending  -&gt;  refined
+refined_submissions:   draft    -&gt;  refined  -&gt;  archived
+agent_drafts:          proposed -&gt;  applied
+                       blocked  -&gt;  proposed (on user edit)
+chat_sessions:         active   -&gt;  archived</code></pre>
+
+            <h2>Key Columns on refined_submissions</h2>
+            <p><code>course_code</code>, <code>course_title</code>, <code>semester</code>, <code>credit_category</code>, <code>program</code>, <code>lecture_hours</code>, <code>tutorial_hours</code>, <code>practical_hours</code>, <code>self_study</code>, <code>credits</code>, <code>course_type</code>, <code>is_elective</code>, <code>visible</code>, <code>units</code> (jsonb), <code>objectives</code>/<code>text_books</code>/... (arrays), <code>status</code>.</p>
+
+            <p><code>visible</code> (default true) controls whether a course renders in preview/PDF output. Toggle it from the course management page. Hidden courses stay in the database and remain editable but are excluded from every rendered document.</p>
+
+            <p>Verify with <code>GET /api/health/schema</code>.</p>
+
+            <h2>Table Relationships</h2>
+<pre><code>refined_submissions (1) ----&lt; (N) agent_drafts
+refined_submissions (1) ----&lt; (N) course_revision_history
+curriculum_versions (1) ----&lt; (N) finalized_submissions
+agent_document_drafts (1) ----&lt; (N) agent_drafts
+chat_sessions (1) ----&lt; (N) chat_messages
+chat_sessions (1) ----&lt; (N) chat_attachments
+specialization_definitions (1) ----&lt; (N) course_specialization_assignments
+refined_submissions (1) ----&lt; (N) course_specialization_assignments</code></pre>
+
+            <h2>Specialization Tables</h2>
+            <table>
+              <thead>
+                <tr><th>Table</th><th>Schema</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>specialization_definitions</code></td><td>One row per track: id, semester, letter (A/B/C...), name, key (SCC/MIDS/CSCS), academic_year</td></tr>
+                <tr><td><code>course_specialization_assignments</code></td><td>One row per (course, track) membership: id, refined_id, specialization_id</td></tr>
+                <tr><td><code>refined_submissions.is_elective</code></td><td>Boolean flag marking a course as an elective</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ==================== ENVIRONMENT ==================== -->
+        <div class="docs-section" id="env">
+          <div class="docs-card">
+            <h1>Environment Variables</h1>
+
+            <h2>Required backend (/api server, loaded from repo-root .env)</h2>
+            <table>
+              <thead>
+                <tr><th>Variable</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>SUPABASE_URL</code></td></tr>
+                <tr><td><code>SUPABASE_KEY</code></td></tr>
+                <tr><td><code>OPENROUTER_URL</code></td></tr>
+                <tr><td><code>OPENROUTER_API_KEY</code></td></tr>
+                <tr><td><code>OPENROUTER_MODEL</code></td></tr>
+              </tbody>
+            </table>
+
+            <h2>Optional</h2>
+            <table>
+              <thead>
+                <tr><th>Variable</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>CURRICULUM_YEAR</code></td><td>The active batch label (e.g. 2025-2026)</td></tr>
+                <tr><td><code>OPENROUTER_FALLBACK_MODEL</code></td><td>Backup model used when the primary model fails after retries (e.g. <code>google/gemma-3-27b-it:free</code>)</td></tr>
+                <tr><td><code>REDIS_URL</code></td><td>Upstash Redis URL for persistent caching (falls back to in-memory)</td></tr>
+                <tr><td><code>SENTRY_DSN</code>, <code>SENTRY_ENVIRONMENT</code>, <code>SENTRY_RELEASE</code></td><td>Error tracking configuration</td></tr>
+              </tbody>
+            </table>
+
+            <p>The frontend uses the public Supabase anon key directly in <code>shared/supabase-client.js</code>.</p>
+          </div>
+        </div>
+
+        <!-- ==================== DEPLOYMENT ==================== -->
+        <div class="docs-section" id="deploy">
+          <div class="docs-card">
+            <h1>Deployment</h1>
+
+            <h2>Backend (HF Spaces)</h2>
+            <p>Docker image runs <code>uvicorn app.main:app --host 0.0.0.0 --port 7860</code> (HF Space).</p>
+            <p><code>.github/workflows/sync-to-hub.yml</code> syncs <code>main</code> to the HF Space.</p>
+
+            <p><strong>Required HF Space secrets:</strong></p>
+            <table>
+              <thead>
+                <tr><th>Secret</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>SUPABASE_URL</code>, <code>SUPABASE_KEY</code></td><td>Database connection</td></tr>
+                <tr><td><code>OPENROUTER_URL</code>, <code>OPENROUTER_API_KEY</code>, <code>OPENROUTER_MODEL</code></td><td>LLM provider</td></tr>
+                <tr><td><code>OPENROUTER_FALLBACK_MODEL</code></td><td>Recommended fallback model</td></tr>
+                <tr><td><code>REDIS_URL</code></td><td>Optional persistent caching</td></tr>
+                <tr><td><code>SENTRY_DSN</code>, <code>SENTRY_ENVIRONMENT</code>, <code>SENTRY_RELEASE</code></td><td>Optional error tracking</td></tr>
+              </tbody>
+            </table>
+
+            <h2>Frontend (Vercel)</h2>
+            <p>Static hosting with <code>frontend/vercel.json</code> rewriting <code>/api/*</code> to the backend.</p>
+
+            <p><strong>Required Vercel environment variables:</strong></p>
+            <table>
+              <thead>
+                <tr><th>Variable</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>NEXT_PUBLIC_SUPABASE_URL</code></td><td>Public Supabase URL</td></tr>
+                <tr><td><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code></td><td>Public Supabase anon key</td></tr>
+              </tbody>
+            </table>
+
+            <h2>CI (.github/workflows/ci.yml)</h2>
+            <p>Runs on push/PR: checkout, Python 3.12, pip install (cached), <code>apt-get install poppler-utils</code>, <code>pytest</code>, <code>python -m compileall backend/app</code>.</p>
+
+            <h2>Local Development</h2>
+<pre><code>python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cd backend &amp;&amp; fastapi dev app/main.py</code></pre>
+            <p>Server at <code>http://127.0.0.1:8000</code>. API under <code>/api</code>. Frontend served from <code>frontend/</code>.</p>
+
+<pre><code>source .venv/bin/activate
+pytest                              # all tests
+python -m compileall backend/app    # also runs in CI</code></pre>
+          </div>
+        </div>
+
+      </main>
+    </div>
+
+    <script>
+      var mermaidLoaded = false;
+
+      function loadMermaid(cb) {
+        if (mermaidLoaded) { cb(); return; }
+        var s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js";
+        s.onload = function () {
+          mermaid.initialize({ startOnLoad: false, theme: "default" });
+          mermaidLoaded = true;
+          cb();
+        };
+        document.head.appendChild(s);
+      }
+
+      function renderMermaid() {
+        if (!window.mermaid) return;
+        document.querySelectorAll("div.mermaid:not([data-processed])").forEach(function (el) {
+          mermaid.run({ nodes: [el] });
+        });
+      }
+
+      function showSection(id, linkEl) {
+        document.querySelectorAll(".docs-section").forEach(function (s) {
+          s.classList.remove("active");
+        });
+        document.getElementById(id).classList.add("active");
+        document.querySelectorAll(".docs-sidebar-link").forEach(function (a) {
+          a.classList.remove("active");
+        });
+        linkEl.classList.add("active");
+        if (id === "arch" && !mermaidLoaded) {
+          loadMermaid(renderMermaid);
+        }
+      }
+    </script>
+  </body>
+</html>
