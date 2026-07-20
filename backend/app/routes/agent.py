@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from postgrest.exceptions import APIError
@@ -9,6 +11,8 @@ from app.services.curriculum import create_version_snapshot, draft_record, load_
 from app.services.diffing import build_course_diff, diff_course
 from app.services.errors import database_http_exception
 from app.supabase import supabase
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -143,7 +147,11 @@ def apply_agent_draft(draft_id: int):
         supabase.table("refined_submissions").update({"status": "refined"}).eq("id", int(draft["refined_id"])).execute()
         supabase.table("agent_drafts").update({"status": "applied"}).eq("id", draft_id).execute()
         version_name = _generate_version_name(summary, "apply")
-        version = create_version_snapshot(version_name)
+        try:
+            version = create_version_snapshot(version_name)
+        except Exception:
+            logger.exception("Version snapshot failed after draft apply")
+            version = None
     except APIError as exc:
         raise database_http_exception(exc) from exc
     return {"message": "Draft applied", "data": data, "version": version}
@@ -254,7 +262,11 @@ def apply_agent_document_draft(document_draft_id: int):
 
     supabase.table("agent_document_drafts").update({"status": "applied"}).eq("id", document_draft_id).execute()
     version_name = _generate_version_name(summary, "apply-multi")
-    version = create_version_snapshot(version_name)
+    try:
+        version = create_version_snapshot(version_name)
+    except Exception:
+        logger.exception("Version snapshot failed after document draft apply")
+        version = None
 
     return {"message": f"Applied {len(applied)} drafts", "applied_draft_ids": applied, "version": version}
 

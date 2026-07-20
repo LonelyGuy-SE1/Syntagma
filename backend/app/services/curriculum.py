@@ -135,16 +135,19 @@ def elective_order(code: str, first_group: str, second_group: str) -> int | None
     return None
 
 
-def create_version_snapshot(name: str) -> dict:
+def create_version_snapshot(name: str) -> dict | None:
     rows = supabase.table("refined_submissions").select("*").in_("status", ["refined"]).execute().data
     rows = attach_submissions(rows)
     courses = [{"refined_id": row["id"], "course_json": build_course_preview(row)} for row in rows]
     program = courses[0]["course_json"].get("program") if courses else ""
-    version = (
+    result = (
         supabase.table("curriculum_versions")
         .insert({"name": name, "program": program, "academic_year": selected_curriculum_year(), "status": "draft"})
-        .execute().data[0]
+        .execute()
     )
+    version = (result.data or [None])[0]
+    if not version:
+        return None
     if courses:
         records = [{**course, "curriculum_version_id": version["id"]} for course in courses]
         supabase.table("finalized_submissions").insert(records).execute()
