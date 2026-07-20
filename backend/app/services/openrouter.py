@@ -241,6 +241,8 @@ def _chat_with_tools(messages: list[dict], tools: list[dict], tool_runner, on_to
             text = str(message.get("content") or "").strip()
             if text:
                 yield text
+            elif i > 0:
+                yield "The agent finished without a response. Try rephrasing your request or breaking it into smaller steps."
             if last_prompt_tokens:
                 yield {"$usage": {"prompt_tokens": last_prompt_tokens, "context_length": context_length()}}
             return
@@ -267,12 +269,15 @@ def _chat_with_tools(messages: list[dict], tools: list[dict], tool_runner, on_to
             yield {"$event": "tool_result", "name": name, "status": "ok" if "error" not in result else "error"}
             if on_tool_result:
                 on_tool_result(name, result)
+            content = json.dumps(result, ensure_ascii=False)
+            if len(content) > 50000:
+                content = content[:50000] + '... [truncated; use semester filter or batch_read_courses for smaller results]'
             messages.append(
                 {
                     "role": "tool",
                     "tool_call_id": tool_call.get("id") or name,
                     "name": name,
-                    "content": json.dumps(result, ensure_ascii=False),
+                    "content": content,
                 }
             )
             if (result or {}).get("done"):
