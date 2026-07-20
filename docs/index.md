@@ -1,5 +1,5 @@
 ---
-title: PESU Curriculum Automation
+title: Syntagma
 permalink: /
 ---
 
@@ -16,9 +16,9 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-# PESU Curriculum Automation
+# Syntagma
 
-PESU Curriculum Automation is a FastAPI + static-frontend application that collects
+Syntagma is a FastAPI + static-frontend application that collects
 course submissions from faculty, refines them into curriculum-ready records with an
 LLM, renders the entire syllabus as HTML/PDF, lets an assistant agent propose and
 apply reviewable edits, and preserves named curriculum snapshots (versions).

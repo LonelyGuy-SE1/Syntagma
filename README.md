@@ -7,7 +7,7 @@ app_port: 7860
 pinned: false
 ---
 
-# PESU Curriculum Automation
+# Syntagma
 
 <div align="center">
 
@@ -106,7 +106,7 @@ The Agentic Editor includes an AI assistant with 35 tools for reading, writing, 
 | **Generate** | `create_report`, `create_spreadsheet`, `create_curriculum_version` | Markdown/PDF reports, CSV/Excel exports, version snapshots |
 | **Control** | `signal_done` | Signal task completion with a summary |
 
-Full tool schemas and documentation: [PESU Curriculum Docs](https://lonelyguy-se1.github.io/PESU-Curriculum-Automation/)
+Full tool schemas and documentation: [Syntagma Docs](https://lonelyguy-se1.github.io/PESU-Curriculum-Automation/)
 
 ## Documentation
 
