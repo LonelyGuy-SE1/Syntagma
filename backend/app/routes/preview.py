@@ -142,7 +142,7 @@ def download_all_pdf(download: bool = Query(False), curriculum_year: str | None 
     cache_key = f"full_pdf:{cy}"
     cached = cache.get(cache_key)
     if cached is not None:
-        return pdf_response(cached, "curriculum-preview.pdf", download)
+        return pdf_response(cached, "curriculum-preview.pdf", download, s_maxage=180)
     result = supabase.table("refined_submissions").select("*").in_("status", ["refined"]).eq("visible", True).execute()
     courses = ordered_courses(result.data)
     html = templates.get_template("jinja_sample.html").render(
@@ -155,7 +155,7 @@ def download_all_pdf(download: bool = Query(False), curriculum_year: str | None 
     )
     pdf = HTML(string=html, base_url=str(FRONTEND_DIR)).write_pdf()
     cache.put(cache_key, pdf, ttl=600)
-    return pdf_response(pdf, "curriculum-preview.pdf", download)
+    return pdf_response(pdf, "curriculum-preview.pdf", download, s_maxage=180)
 
 
 @router.get("/preview/semester/{sem}/pdf")
@@ -180,14 +180,14 @@ def download_pdf(sem: int, download: bool = Query(False), curriculum_year: str |
     return pdf_response(pdf, f"semester-{sem}.pdf", download)
 
 
-def pdf_response(pdf: bytes, filename: str, download: bool) -> Response:
+def pdf_response(pdf: bytes, filename: str, download: bool, s_maxage: int = 300) -> Response:
     disposition = "attachment" if download else "inline"
     return Response(
         content=pdf,
         media_type="application/pdf",
         headers={
             "Content-Disposition": f'{disposition}; filename="{filename}"',
-            "Cache-Control": "public, max-age=30, s-maxage=300, stale-while-revalidate=600",
+            "Cache-Control": f"public, max-age=30, s-maxage={s_maxage}, stale-while-revalidate=600",
         },
     )
 

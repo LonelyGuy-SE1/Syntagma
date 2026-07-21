@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 from postgrest.exceptions import APIError
 
 from app.models.agent import AgentDocumentDraftPayload, AgentDraftPayload, AgentToolPayload
+from app.preview import build_course_preview
 from app.rendering import templates
 from app.services.agent_tools import call_tool, list_tool_schemas
 from app.services.curriculum import create_version_snapshot, draft_record, load_agent_draft, load_document_draft, selected_curriculum_year, update_refined_fields
@@ -91,7 +92,8 @@ def preview_agent_draft(draft_id: int, diff: bool = False, curriculum_year: str 
             asset_root="/",
         )
     else:
-        html = templates.get_template("jinja_sample.html").render(course=draft["proposed_json"], curriculum_year=selected_curriculum_year(curriculum_year), asset_root="/", show_thank_you=False)
+        proposed = build_course_preview(draft["proposed_json"])
+        html = templates.get_template("jinja_sample.html").render(course=proposed, curriculum_year=selected_curriculum_year(curriculum_year), asset_root="/", show_thank_you=False)
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
@@ -307,7 +309,7 @@ def preview_agent_document_draft(document_draft_id: int, diff: bool = False, cur
         )
     else:
         courses = sorted(
-            (draft["proposed_json"] for draft in drafts),
+            (build_course_preview(draft["proposed_json"]) for draft in drafts),
             key=lambda course: (int(course.get("semester") or 0), str(course.get("course_code") or ""), str(course.get("course_title") or "")),
         )
         html = templates.get_template("jinja_sample.html").render(courses=courses, semester="", curriculum_year=selected_curriculum_year(curriculum_year), asset_root="/", show_summaries=True)
