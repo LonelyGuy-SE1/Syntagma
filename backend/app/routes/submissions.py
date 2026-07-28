@@ -20,7 +20,10 @@ def refine_later(submission_id: int) -> None:
 
 @router.post("/submissions")
 def receive(data: CourseSubmission, background_tasks: BackgroundTasks):
-    parsed = parse_course_code(data.course_code)
+    try:
+        parsed = parse_course_code(data.course_code)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     payload = data.model_dump()
     user_credit = (payload.get("credit_category") or "").strip()
     if user_credit in ("0", "2", "4", "5"):
