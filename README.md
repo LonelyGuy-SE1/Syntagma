@@ -33,7 +33,7 @@ PES University revamps its B.Tech curriculum nearly every academic year. Faculty
 
 Faculty submit raw course content through a form. The system uses AI to clean and structure it into curriculum-ready records. Admins review, edit, and approve changes through an agentic AI assistant that proposes edits but never applies them without human approval. The full curriculum renders as official A4 PDFs with PES University's letterhead. Every change is tracked with named version snapshots.
 
-**Live Demo:** **[syntagma.lonelyguy.tech](https://syntagma.lonelyguy.tech/)** (preferred)
+**Live Demo:** **[syntagma.lonelyguy.tech](https://syntagma.lonelyguy.tech/)** (preferred) (DB will be disabled shortly, contact me to enable it again.)
 
 Backup: [pesucurriculum.vercel.app](https://pesucurriculum.vercel.app/)
 
