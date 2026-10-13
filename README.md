@@ -1,3 +1,5 @@
+The backend has been taken down/migrated. So the demo has been paused.
+
 ---
 title: Curriculum Backend
 colorFrom: blue
